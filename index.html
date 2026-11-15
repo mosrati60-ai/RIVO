@@ -200,7 +200,9 @@ body.dark input,body.dark select,body.dark textarea{background:#203650;color:whi
    <input id="adminPhone" placeholder="رقم الهاتف">
    <input id="adminNewPass" type="password" placeholder="كلمة السر">
    <input id="adminConfirmPass" type="password" placeholder="تأكيد كلمة السر">
-   <button class="primary" onclick="registerAdmin()">إنشاء الحساب</button>
+   <button class="primary" onclick= registerAdmin(){
+  alert('إنشاء حساب Admin من الواجهة العمومية مغلق. يلزم إعداد الحساب بطريقة آمنة.');
+}
   </div>
   <div id="adminLoginBox" class="hide">
    <h3>تسجيل الدخول</h3>
@@ -806,6 +808,43 @@ function clearAllData(){
  Object.keys(localStorage).filter(k=>k.startsWith('taxi')).forEach(k=>localStorage.removeItem(k));
  alert('تم حذف البيانات المحلية');location.reload();
 }
+</script>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-app.js";
+
+import {
+  getAuth,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signOut
+} from "https://www.gstatic.com/firebasejs/12.0.0/firebase-auth.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDktgkcprfcndIW1CFRVjhvPr5bf0AHIVM",
+  authDomain: "taxi-motor-120b3.firebaseapp.com",
+  databaseURL: "https://taxi-motor-120b3-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "taxi-motor-120b3",
+  storageBucket: "taxi-motor-120b3.firebasestorage.app",
+  messagingSenderId: "965740197595",
+  appId: "1:965740197595:web:86acdfb12f44850d1d3efe"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+
+window.registerUser = async (email, password) => {
+  return await createUserWithEmailAndPassword(auth, email, password);
+};
+
+window.loginUser = async (email, password) => {
+  return await signInWithEmailAndPassword(auth, email, password);
+};
+
+window.logoutUser = async () => {
+  return await signOut(auth);
+};
+
+console.log("Firebase connected!");
 </script>
 </body>
 </html>
