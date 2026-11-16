@@ -216,15 +216,25 @@ body.dark input,body.dark select,body.dark textarea{background:#203650;color:whi
   <button class="primary" onclick="loginDriver()">دخول</button>
  <p id="driverError"></p>
   <hr>
-  <h3>طلب الانضمام كسائق</h3>
-  <input id="applyName" placeholder="اسمك">
-  <input id="applyPhone" placeholder="رقم الهاتف">
-  <textarea id="applyInfo" placeholder="نوع الدراجة ومعلومات إضافية"></textarea>
-  <button class="primary" onclick="applyDriver()">إرسال طلب الانضمام</button>
-  <p id="applyResult"></p>
- </div>
-</section>
+<h3>طلب الانضمام كسائق</h3>
 
+<input id="applyName" placeholder="اسمك">
+
+<input id="applyEmail" type="email" placeholder="البريد الإلكتروني">
+
+<input id="applyPassword" type="password" placeholder="كلمة السر (6 أحرف على الأقل)">
+
+<input id="applyPhone" placeholder="رقم الهاتف">
+
+<textarea id="applyInfo" placeholder="نوع الدراجة ومعلومات إضافية"></textarea>
+
+<button class="primary" onclick="applyDriver()">
+  إنشاء الحساب وإرسال طلب الانضمام
+</button>
+
+<p id="applyResult"></p>
+</div>
+</section>
 <section class="page" id="driverPanel">
  <button class="back" onclick="driverLogout()">خروج</button>
  <div class="card">
@@ -1232,45 +1242,38 @@ function sendComplaint(){
  $('complaintResult').innerText='تم حفظ الشكوى في هذا المتصفح.';
  $('complaintText').value='';
 }
-async function applyDriver(){
-  let name = $('applyName').value.trim();
-  let phone = $('applyPhone').value.trim();
-  let info = $('applyInfo').value.trim();
 
-  if(!name || !phone){
-    return alert('اكتب الاسم ورقم الهاتف');
-  }
+<hr>
+<h3>طلب الانضمام كسائق</h3>
 
-  try {
-    const existing = await db.collection('driverApplications')
-      .where('phone', '==', phone)
-      .where('status', '==', 'قيد المراجعة')
-      .get();
+<input id="applyName" placeholder="اسمك">
 
-    if(!existing.empty){
-      return alert('عندك مطلب انضمام قيد المراجعة');
-    }
+<input
+  id="applyEmail"
+  type="email"
+  placeholder="البريد الإلكتروني"
+>
 
-    await db.collection('driverApplications').add({
-      name,
-      phone,
-      info,
-      status: 'قيد المراجعة',
-      createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
+<input
+  id="applyPassword"
+  type="password"
+  placeholder="كلمة السر (6 أحرف على الأقل)"
+>
 
-    $('applyResult').innerText =
-      'تم إرسال طلب الانضمام بنجاح إلى المسؤول';
+<input id="applyPhone" placeholder="رقم الهاتف">
 
-    $('applyName').value = '';
-    $('applyPhone').value = '';
-    $('applyInfo').value = '';
+<textarea
+  id="applyInfo"
+  placeholder="نوع الدراجة ومعلومات إضافية"
+></textarea>
 
-  } catch(error) {
-    alert('تعذر إرسال الطلب: ' + error.message);
-  }
-}
+<button class="primary" onclick="applyDriver()">
+  إنشاء الحساب وإرسال طلب الانضمام
+</button>
 
+<p id="applyResult"></p>
+</div>
+</section>
 
 
 /* السائقون */
