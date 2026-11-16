@@ -657,7 +657,7 @@ function registerAdmin(){
 
 
 async function loginAdmin(){
-  const email = $('adminLoginPhone').value.trim();
+  const email = $('adminLoginEmail').value.trim().toLowerCase();
   const password = $('adminPass').value;
 
   if(!email || !password){
