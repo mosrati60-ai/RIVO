@@ -95,6 +95,15 @@ body.dark input,body.dark select,body.dark textarea{background:#203650;color:whi
   <button class="primary" onclick="loginClient()">دخول</button>
   <button class="whatsapp" onclick="forgotClientPassword()">نسيت كلمة السر؟ WhatsApp</button>
   <p id="clientAuthMessage"></p>
+  <div id="recaptcha-container"></div>
+
+<div id="clientOtpBox" class="hide">
+  <input id="clientOtp" type="text" inputmode="numeric"
+         placeholder="أدخل رمز SMS">
+  <button class="primary" onclick="verifyClientOTP()">
+    تأكيد الرمز وإنشاء الحساب
+  </button>
+</div>
  </div>
 
  <div class="card hide" id="clientAccountBox">
@@ -340,32 +349,105 @@ function getClientFavorites(){
  return read('taxiFavorites_'+clientUser.phone,[]);
 }
 function registerClient(){
- let name=$('clientRegisterName').value.trim();
- let phone=$('clientRegisterPhone').value.trim();
- let pass=$('clientRegisterPass').value;
- let confirmPass=$('clientRegisterConfirm').value;
- let msg=$('clientAuthMessage');
+let confirmationResult = null;
+let pendingClient = null;
+let recaptchaVerifier = null;
 
- if(!name||!phone||!pass||!confirmPass){
-  msg.innerText='عمر جميع الخانات';return;
- }
- if(pass.length<6){
-  msg.innerText='كلمة السر لازمها 6 أحرف على الأقل';return;
- }
- if(pass!==confirmPass){
-  msg.innerText='كلمتا السر غير متطابقتين';return;
- }
- let clients=getClients();
- if(clients.some(c=>c.phone===phone)){
-  msg.innerText='رقم الهاتف مسجل من قبل';return;
- }
- clients.push({id:Date.now(),name,phone,password:pass});
- write('taxiClients',clients);
- $('clientLoginPhone').value=phone;
- $('clientLoginPass').value='';
- $('clientRegisterPass').value='';
- $('clientRegisterConfirm').value='';
- msg.innerText='تم إنشاء الحساب بنجاح! سجّل الدخول توا.';
+function registerClient(){
+  const name = $('clientRegisterName').value.trim();
+  let phone = $('clientRegisterPhone').value.trim();
+  const pass = $('clientRegisterPass').value;
+  const confirmPass = $('clientRegisterConfirm').value;
+  const msg = $('clientAuthMessage');
+
+  if(!name || !phone || !pass || !confirmPass){
+    msg.innerText = 'عمر جميع الخانات';
+    return;
+  }
+
+  if(pass.length < 6){
+    msg.innerText = 'كلمة السر لازمها 6 أحرف على الأقل';
+    return;
+  }
+
+  if(pass !== confirmPass){
+    msg.innerText = 'كلمتا السر غير متطابقتين';
+    return;
+  }
+
+  phone = phone.replace(/\s+/g,'');
+
+  if(phone.startsWith('0')) phone = '+216' + phone.slice(1);
+  else if(phone.startsWith('216')) phone = '+' + phone;
+  else if(!phone.startsWith('+216')){
+    msg.innerText = 'اكتب رقم تونسي صحيح يبدأ بـ 216';
+    return;
+  }
+
+  pendingClient = {name, phone};
+
+  try{
+    if(!recaptchaVerifier){
+      recaptchaVerifier = new firebase.auth.RecaptchaVerifier(
+        'recaptcha-container',
+        {size:'normal'}
+      );
+    }
+
+    recaptchaVerifier.render().then(()=>{
+      return auth.signInWithPhoneNumber(phone, recaptchaVerifier);
+    }).then(result=>{
+      confirmationResult = result;
+      $('clientOtpBox').classList.remove('hide');
+      msg.innerText = 'بعثنالك رمز SMS. أدخله لتأكيد رقمك.';
+    }).catch(error=>{
+      msg.innerText = 'تعذر إرسال الرمز: ' + error.message;
+      if(recaptchaVerifier){
+        recaptchaVerifier.clear();
+        recaptchaVerifier = null;
+      }
+    });
+  }catch(error){
+    msg.innerText = error.message;
+  }
+}
+
+async function verifyClientOTP(){
+  const code = $('clientOtp').value.trim();
+  const msg = $('clientAuthMessage');
+
+  if(!confirmationResult || code.length !== 6){
+    msg.innerText = 'أدخل رمز SMS الصحيح';
+    return;
+  }
+
+  try{
+    const result = await confirmationResult.confirm(code);
+    const user = result.user;
+
+    await db.collection('clients').doc(user.uid).set({
+      uid: user.uid,
+      name: pendingClient.name,
+      phone: user.phoneNumber,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+
+    clientUser = {
+      uid: user.uid,
+      name: pendingClient.name,
+      phone: user.phoneNumber
+    };
+
+    $('clientOtpBox').classList.add('hide');
+    $('clientAuthBox').classList.add('hide');
+    updateClientView();
+    renderClient();
+    renderFavorites();
+
+    msg.innerText = 'تم إنشاء حسابك بنجاح!';
+  }catch(error){
+    msg.innerText = 'فشل التحقق: ' + error.message;
+  }
 }
 function loginClient(){
  let phone=$('clientLoginPhone').value.trim();
