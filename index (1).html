@@ -840,11 +840,6 @@ async function orderRide(){
     });
 
     ride.id = doc.id;
-
-    const rides = getRides();
-    rides.push(ride);
-    write('taxiRequests', rides);
-
     $('clientResult').innerHTML =
       `<div class="info">
         تم إرسال طلبك وحفظه بنجاح.
@@ -1510,25 +1505,28 @@ async function renderAdmin(){
 }
 async function deleteDriver(id){
 
-  if(!auth.currentUser){
+
+async function deleteDriver(id) {
+  if (!auth.currentUser) {
     return alert('لازم المسؤول يعمل تسجيل دخول');
   }
 
-  if(!confirm('متأكد تحب تحذف السائق؟')){
+  if (!confirm('متأكد تحب تحذف السائق؟')) {
     return;
   }
 
-  try{
+  try {
     await db.collection('drivers').doc(id).delete();
 
-    alert('تم حذف السائق');
-    renderAdmin();
+    alert('تم حذف السائق بنجاح');
 
-  }catch(error){
-    console.error('Delete Driver:', error);
-    alert('تعذر حذف السائق: ' + error.message);
+    await renderAdmin();
+
+  } catch (error) {
+    alert('خطأ في حذف السائق: ' + error.message);
   }
 }
+
 async function approveApplication(id){
 
   if(!auth.currentUser){
