@@ -503,15 +503,27 @@ function updateClientView(){
  }
 }
 function logoutClient(){
- clientUser=null;
- updateClientView();
- $('clientLoginPass').value='';
- $('clientRegisterPass').value='';
- $('clientRegisterConfirm').value='';
- $('clientRequests').innerHTML='';
- $('favorites').innerHTML='';
- $('clientResult').innerHTML='';
+
+async function logoutClient(){
+  try {
+    await auth.signOut();
+
+    clientUser = null;
+    updateClientView();
+
+    $('clientLoginPass').value = '';
+    $('clientRegisterPass').value = '';
+    $('clientRegisterConfirm').value = '';
+    $('clientRequests').innerHTML = '';
+    $('favorites').innerHTML = '';
+    $('clientResult').innerHTML = '';
+    $('clientAuthMessage').innerText = 'تم تسجيل الخروج بنجاح.';
+  } catch(error) {
+    $('clientAuthMessage').innerText =
+      'تعذر تسجيل الخروج: ' + error.message;
+  }
 }
+
 function forgotClientPassword(){
  let phone=$('clientLoginPhone').value.trim();
  if(!phone){
