@@ -300,6 +300,8 @@ if (!firebase.apps.length) {
 }
 
 const auth = firebase.auth();
+ auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL)
+  .catch(error => console.error('Persistence Error:', error));
 const db = firebase.firestore();
 const read=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d}catch(e){return d}};
 const write=(k,v)=>localStorage.setItem(k,JSON.stringify(v));
