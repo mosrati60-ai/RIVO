@@ -2074,6 +2074,16 @@ console.log('AUTH:', auth.currentUser?.uid);
 console.log('FARE:', route.fare, typeof route.fare);
 console.log('PHONE:', clientUser.phone, typeof clientUser.phone);
 console.log('CLIENT ID:', clientUser.uid);
+   console.log('CREATE CHECK:', {
+  signedIn: !!auth.currentUser,
+  clientIdMatches: clientUser.uid === auth.currentUser?.uid,
+  status: 'جديد',
+  driverId: null,
+  fare: route.fare,
+  fareIsNumber: typeof route.fare === 'number',
+  phone: clientUser.phone,
+  phoneIsString: typeof clientUser.phone === 'string'
+});
     await db.collection('rides').add({
       clientId: auth.currentUser.uid,
       name: clientUser.name,
@@ -2103,10 +2113,8 @@ console.log('CLIENT ID:', clientUser.uid);
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
 
-    $('clientResult').innerText =
+        $('clientResult').innerText =
       'تم إرسال طلبك بنجاح! استنى قبول سائق. رمز الرحلة: ' + pin;
-
-    renderClient();
 
   }catch(error){
     console.error('Order Ride Error:',error);
