@@ -790,15 +790,14 @@ async function calculateRoute(){
 }
 
 /* طلب الرحلة */
-function orderRide(){
-
 async function orderRide(){
+
   if(!clientUser || !auth.currentUser){
     return alert('لازم تسجل الدخول أولاً');
   }
 
-  let name = clientUser.name;
-  let phone = clientUser.phone;
+  const name = clientUser.name;
+  const phone = clientUser.phone;
 
   $('clientName').value = name;
   $('clientPhone').value = phone;
@@ -819,35 +818,44 @@ async function orderRide(){
     }
   }
 
-  const pin = String(Math.floor(1000 + Math.random() * 9000));
+  const pin = String(
+    Math.floor(1000 + Math.random() * 9000)
+  );
 
   const ride = {
-    name,
-    phone,
+    name: name,
+    phone: phone,
     clientId: auth.currentUser.uid,
+
     from: from.join(','),
     to: to.join(','),
+
     fromLat: from[0],
     fromLng: from[1],
     toLat: to[0],
     toLng: to[1],
-    distance: route.distance,
-    minutes: route.minutes,
-    fare: route.fare,
-    commission: route.commission,
+
+    distance: Number(route.distance),
+    minutes: Number(route.minutes || 0),
+    fare: Number(route.fare),
+    commission: Number(route.commission || 0),
+
     status: 'جديد',
     driverId: null,
     driverName: '',
     driverPhone: '',
+
     rating: 0,
-    pin,
+    pin: pin,
+
     payment: $('payment').value,
     notes: $('clientNotes').value,
-    scheduled,
+    scheduled: scheduled,
     created: new Date().toISOString()
   };
 
   try {
+
     const doc = await db.collection('rides').add({
       ...ride,
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -855,12 +863,30 @@ async function orderRide(){
 
     ride.id = doc.id;
 
-    let rides = getRides();
+    const rides = getRides();
     rides.push(ride);
     write('taxiRequests', rides);
 
     $('clientResult').innerHTML =
-      `<div class="info">تم إرسال طلبك وحفظه في السحابة. رقم الطلب: <b>${esc(ride.id)}</b></div>`;
+      `<div class="info">
+        تم إرسال طلبك وحفظه بنجاح.
+        رقم الطلب: <b>${esc(ride.id)}</b>
+        <br>
+        رمز الرحلة: <b>${esc(pin)}</b>
+        <br>
+        احتفظ بالرمز ولا تشاركه إلا عند بداية الرحلة.
+      </div>`;
+
+    renderClient();
+
+  } catch(error) {
+
+    console.error('Order Ride Error:', error);
+
+    alert('تعذر حفظ الطلب في Firebase: ' + error.message);
+
+  }
+}
 
     renderClient();
 
