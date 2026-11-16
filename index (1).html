@@ -1688,12 +1688,62 @@ function clearAllData(){
  Object.keys(localStorage).filter(k=>k.startsWith('taxi')).forEach(k=>localStorage.removeItem(k));
  alert('تم حذف البيانات المحلية');location.reload();
 }
+
 auth.onAuthStateChanged(async user => {
   if (!user) {
     clientUser = null;
+    driver = null;
+    online = false;
     updateClientView();
     return;
   }
+
+  try {
+    // التثبت هل الحساب حريف
+    const clientDoc = await db.collection('clients')
+      .doc(user.uid).get();
+
+    if (clientDoc.exists) {
+      const data = clientDoc.data();
+
+      clientUser = {
+        uid: user.uid,
+        name: data.name,
+        phone: user.phoneNumber
+      };
+
+      updateClientView();
+      renderClient();
+      renderFavorites();
+      return;
+    }
+
+    // التثبت هل الحساب سائق
+    const driverDoc = await db.collection('drivers')
+      .doc(user.uid).get();
+
+    if (driverDoc.exists) {
+      const data = driverDoc.data();
+
+      driver = {
+        uid: user.uid,
+        ...data
+      };
+
+      online = data.online === true;
+
+      openPage('driverPanel');
+      console.log('تم استرجاع حساب السائق بنجاح');
+      return;
+    }
+
+    console.log('الحساب غير موجود في clients أو drivers');
+
+  } catch (error) {
+    console.error('Firebase Auth:', error);
+  }
+});
+
 
   try {
     const doc = await db.collection('clients').doc(user.uid).get();
