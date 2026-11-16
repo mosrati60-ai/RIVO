@@ -341,11 +341,53 @@ const getSettings=()=>read('taxiSettings',{pricePerKm:.8,minPrice:2,commission:1
 let driver=null,online=false,map=null,from=null,to=null,m1=null,m2=null,line=null,route=null;
 let clientUser=null;
 let stopDriverNewRides = null;
+
 function openPage(id){
- document.querySelectorAll('.page,.hero').forEach(x=>x.style.display='none');
- $(id).style.display='block';
- if(id==='client'){
-  updateClientView();
+  document.querySelectorAll('.page,.hero').forEach(x=>{
+    x.style.display = 'none';
+  });
+
+  const page = $(id);
+
+  if(!page){
+    console.error('Page not found:', id);
+    return;
+  }
+
+  page.style.display = 'block';
+
+  if(id === 'client'){
+    updateClientView();
+
+    setTimeout(()=>{
+      initMap();
+      if(map) map.invalidateSize();
+    },300);
+  }
+
+  if(id === 'adminLogin'){
+    checkAdmin();
+  }
+
+  if(id === 'adminPanel'){
+    if(typeof loadSettings === 'function'){
+      loadSettings();
+    }
+    renderAdmin();
+  }
+
+  if(id === 'driverPanel'){
+    if(stopDriverNewRides){
+      stopDriverNewRides();
+      stopDriverNewRides = null;
+    }
+
+    renderDriver();
+  }
+
+  window.scrollTo(0,0);
+}
+
   function updateClientView(){
   const authBox = $('clientAuthBox');
 
