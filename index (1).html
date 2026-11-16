@@ -224,7 +224,7 @@ body.dark input,body.dark select,body.dark textarea{background:#203650;color:whi
 <section class="page" id="adminPanel">
  <button class="back" onclick="goHome()">خروج</button>
  <div class="card">
-  <h2>👑 by mosrat </h2>
+  <h2>👑 by mosrati </h2>
   <div class="stats">
    <div class="stat">كل الطلبات<b id="totalRequests">0</b></div>
    <div class="stat">مكتملة<b id="completedRequests">0</b></div>
@@ -1200,18 +1200,23 @@ async function renderDriver(){
 
   $('driverRequests').innerHTML = 'جاري تحميل الطلبات...';
   $('driverMyRequests').innerHTML = 'جاري تحميل رحلاتك...';
-   // استقبال الطلبات الجديدة مباشرة من Firebase
-  if (!stopDriverNewRides) {
-    stopDriverNewRides = db.collection('rides')
-      .where('status', '==', 'جديد')
-      .onSnapshot(() => {
-        if (driver && auth.currentUser) {
-          renderDriver();
-        }
-      }, error => {
-        console.error('Live Requests Error:', error);
-      });
-  }
+
+// استقبال الطلبات الجديدة مباشرة من Firebase
+if (!stopDriverNewRides) {
+  stopDriverNewRides = db.collection('rides')
+    .where('status', '==', 'جديد')
+    .onSnapshot(snapshot => {
+      console.log('LIVE UPDATE وصل:', snapshot.size);
+
+      if (driver && auth.currentUser) {
+        renderDriver();
+      }
+    }, error => {
+      console.error('Live Requests Error:', error);
+      alert('خطأ استقبال الطلبات: ' + error.message);
+    });
+}
+
 
   try {
 
