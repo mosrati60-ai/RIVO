@@ -1927,7 +1927,6 @@ auth.onAuthStateChanged(async user => {
     console.error('Firebase Auth:', error);
   }
 });
-
 async function applyDriver(){
   const name = $('applyName').value.trim();
   const email = $('applyEmail').value.trim().toLowerCase();
@@ -1944,12 +1943,45 @@ async function applyDriver(){
   }
 
   try{
-    const credential = await auth.createUserWithEmailAndPassword(
-      email,
-      password
-    );
+    let credential;
+
+    try{
+      credential = await auth.createUserWithEmailAndPassword(
+        email,
+        password
+      );
+    }catch(error){
+      if(error.code === 'auth/email-already-in-use'){
+        credential = await auth.signInWithEmailAndPassword(
+          email,
+          password
+        );
+      }else{
+        throw error;
+      }
+    }
 
     const uid = credential.user.uid;
+
+    const existing = await db.collection('driverApplications')
+      .where('uid', '==', uid)
+      .get();
+
+    if(!existing.empty){
+      $('applyResult').innerText =
+        'عندك طلب انضمام سابق، استنى مراجعة المسؤول.';
+      await auth.signOut();
+      return;
+    }
+
+    const driverDoc = await db.collection('drivers').doc(uid).get();
+
+    if(driverDoc.exists){
+      $('applyResult').innerText =
+        'عندك حساب سائق موجود بالفعل.';
+      await auth.signOut();
+      return;
+    }
 
     await db.collection('driverApplications').add({
       uid: uid,
@@ -1964,7 +1996,7 @@ async function applyDriver(){
     await auth.signOut();
 
     $('applyResult').innerText =
-      'تم إرسال طلبك. استنى موافقة المسؤول.';
+      'تم إرسال طلبك بنجاح. استنى موافقة المسؤول.';
 
     $('applyName').value = '';
     $('applyEmail').value = '';
@@ -1974,11 +2006,11 @@ async function applyDriver(){
 
   }catch(error){
     console.error('Driver Application Error:', error);
+
     $('applyResult').innerText =
       'تعذّر إرسال الطلب: ' + error.message;
   }
 }
-
 </script>
 </body>
 </html>
