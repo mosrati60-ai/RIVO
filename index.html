@@ -425,8 +425,8 @@ function goHome(){
  $('home').style.display='flex';
  driver=null;
 }
-function contactAdmin(){
- window.open('https://wa.me/21623348531?text='+encodeURIComponent('السلام عليكم، عندي استفسار حول Taxi Moto Tunisia'),'_blank');
+function contactAdmin(){window.location.href =
+  'https://wa.me/21623348531?text=' + encodeURIComponent(message);
 }
 function toggleTheme(){
  document.body.classList.toggle('dark');
@@ -628,20 +628,27 @@ function updateClientView(){
     $('complaintPhone').value = clientUser.phone || '';
   }
 }
-function forgotClientPassword(){
-  const email = $('clientLoginEmail').value.trim();
+async function forgotClientPassword(){
+  const email = $('clientLoginEmail').value.trim().toLowerCase();
+  const msg = $('clientAuthMessage');
 
   if(!email){
-    $('clientAuthMessage').innerText = 'اكتب البريد الإلكتروني أولاً';
+    msg.innerText = 'اكتب البريد الإلكتروني أولاً';
     return;
   }
 
-  const message = 'نحب مساعدة في استرجاع حساب Taxi Moto Tunisia. البريد الإلكتروني: ' + email;
+  try{
+    await auth.sendPasswordResetEmail(email);
 
-  window.open(
-    'https://wa.me/21623348531?text=' + encodeURIComponent(message),
-    '_blank'
-  );
+    msg.innerText =
+      'تم إرسال رابط استرجاع كلمة السر إلى بريدك الإلكتروني. تفقد صندوق الرسائل.';
+
+  }catch(error){
+    console.error('Password Reset Error:', error);
+
+    msg.innerText =
+      'تعذر إرسال الرابط: ' + error.message;
+  }
 }
 
 /* المسؤول */
