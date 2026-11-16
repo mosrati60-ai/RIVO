@@ -144,7 +144,7 @@ body.dark input,body.dark select,body.dark textarea{background:#203650;color:whi
   <div class="card">
    <h2>🇹🇳 فضاء الحريف</h2>
    <p>اختار مكان الانطلاق والوجهة.</p>
-  <button class="blue" onclick="locateMe()">📍 حدّد موقعي الحالي GPS</<div class="row">
+<div class="row">
   <button class="blue" onclick="chooseStartOnMap()">
     📍 اختار الانطلاق من الخريطة
   </button>
@@ -157,21 +157,15 @@ body.dark input,body.dark select,body.dark textarea{background:#203650;color:whi
 <button class="green" onclick="locateMe()">
   📍 استعمل موقعي الحالي GPS
 </button>
- 
-<div class="destination-search">
-  <h3>🏁 وين تحب تمشي؟</h3>
-  <input
-    id="destinationSearch"
-    type="text"
-    placeholder="اكتب اسم المكان أو العنوان..."
-    oninput="searchDestination(this.value)"
-    autocomplete="off"
-  >
-  <div id="destinationSuggestions"></div>
+   <input
+  id="destinationSearch"
+  type="text"
+  placeholder="اكتب اسم المكان أو العنوان..."
+  oninput="searchDestination(this.value)"
+  autocomplete="off"
+>
 
-  <button class="blue" onclick="chooseDestinationOnMap()">
-    📍 اختار الوجهة من الخريطة
-  </button>
+<div id="destinationSuggestions"></div>
 </div>
 
    <div id="clientMap" class="map"></div>
@@ -748,15 +742,12 @@ function pickPoint(p){
  }
 }
   
-function chooseDestinationOnMap(){
-  if(!from){
-    $('mapHelp').innerText='حدد مكان الانطلاق أولاً باستعمال GPS أو الخريطة.';
-    return;
-  }
+function chooseStartOnMap(){
+  window.selectingStart = true;
+  window.selectingDestination = false;
 
-  $('mapHelp').innerText='اضغط على المكان الذي تريد الوصول إليه في الخريطة.';
-  map.setView(from,14);
-  window.selectingDestination = true;
+  $('mapHelp').innerText =
+    'اضغط على مكان الانطلاق في الخريطة.';
 }
 
 window.searchDestination = async function(value){
@@ -1652,6 +1643,7 @@ async function renderAdmin(){
   // تحميل الرحلات
   try {
     const ridesSnapshot = await db.collection('rides').get();
+   console.log('ADMIN UID:', firebase.auth().currentUser?.uid);
 
     const rs = ridesSnapshot.docs.map(doc => ({
       id: doc.id,
