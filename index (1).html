@@ -677,18 +677,12 @@ function checkAdmin(){
  $('adminLoginBox').classList.toggle('hide',!a);
  if(a)$('adminWelcome').innerText='مرحبا '+a.name;
 }
+
 function registerAdmin(){
- let name=$('adminName').value.trim(),phone=$('adminPhone').value.trim();
- let p=$('adminNewPass').value,c=$('adminConfirmPass').value;
- if(!name||!phone||!p||!c)return $('adminError').innerText='عمر جميع الخانات';
- if(p.length<6)return $('adminError').innerText='كلمة السر لازمها 6 حروف على الأقل';
- if(p!==c)return $('adminError').innerText='كلمتا السر غير متطابقتين';
- if(read('taxiAdmin',null))return $('adminError').innerText='حساب المسؤول موجود';
- write('taxiAdmin',{name,phone,password:p});
- checkAdmin();
- $('adminLoginPhone').value=phone;
- $('adminError').innerText='تم إنشاء الحساب، سجّل الدخول.';
+  $('adminError').innerText =
+    'حساب المسؤول موجود بالفعل. استعمل تسجيل الدخول.';
 }
+
 
 async function loginAdmin(){
   const email = $('adminLoginPhone').value.trim();
@@ -1716,6 +1710,7 @@ function clearAllData(){
  alert('تم حذف البيانات المحلية');location.reload();
 }
 
+
 auth.onAuthStateChanged(async user => {
   if (!user) {
     clientUser = null;
@@ -1726,6 +1721,14 @@ auth.onAuthStateChanged(async user => {
   }
 
   try {
+    // التثبت من حساب الأدمن
+    if (user.uid === 'n4eiE6M94aYkBCxDBTgcjerNAJU2') {
+      openPage('adminPanel');
+      await renderAdmin();
+      console.log('تم استرجاع حساب الأدمن');
+      return;
+    }
+
     // التثبت هل الحساب حريف
     const clientDoc = await db.collection('clients')
       .doc(user.uid).get();
@@ -1764,13 +1767,12 @@ auth.onAuthStateChanged(async user => {
       return;
     }
 
-    console.log('الحساب غير موجود في clients أو drivers');
+    console.log('الحساب غير موجود');
 
   } catch (error) {
     console.error('Firebase Auth:', error);
   }
 });
-
 
 </script>
 </body>
