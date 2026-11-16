@@ -538,6 +538,11 @@ async function loginClient(){
 
 function updateClientView(){
   const authBox = $('clientAuthBox');
+ console.log('CLIENT ELEMENTS:', {
+  authBox: $('clientAuthBox'),
+  accountBox: $('clientAccountBox'),
+  features: $('clientFeatures')
+});
   const accountBox = $('clientAccountBox');
   const features = $('clientFeatures');
 
