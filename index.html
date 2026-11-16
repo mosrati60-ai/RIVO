@@ -711,7 +711,7 @@ function chooseDestinationOnMap(){
   window.selectingDestination = true;
 }
 
-async function searchDestination(value){
+window.searchDestination = async function(value){
   const box = $('destinationSuggestions');
   box.innerHTML = '';
 
