@@ -542,49 +542,7 @@ async function verifyClientOTP(){
     msg.innerText = 'خطأ في تأكيد الرمز: ' + error.message;
   }
 }
-    updateClientView();
-    renderClient();
-    renderFavorites();
 
-    msg.innerText = 'تم تسجيل الدخول بنجاح!';
-
-  }catch(error){
-    console.error('Client OTP Error:', error);
-    msg.innerText = 'خطأ في تأكيد الرمز: ' + error.message;
-  }
-}
-
-    updateClientView();
-    renderClient();
-    renderFavorites();
-
-    msg.innerText = 'تم تسجيل الدخول بنجاح!';
-
-  }catch(error){
-    console.error('Client OTP Error:', error);
-    msg.innerText = 'خطأ في تأكيد الرمز: ' + error.message;
-  }
-}
-
-
-    updateClientView();
-    renderClient();
-    renderFavorites();
-
-  }catch(error){
-    msg.innerText = 'فشل التحقق: ' + error.message;
-  }
-}
-
-    updateClientView();
-    renderClient();
-    renderFavorites();
-
-    msg.innerText = 'تم إنشاء حسابك بنجاح!';
-  }catch(error){
-    msg.innerText = 'فشل التحقق: ' + error.message;
-  }
-}
 async function loginClient(){
   const msg = $('clientAuthMessage');
   let phone = $('clientLoginPhone').value.trim();
@@ -628,32 +586,22 @@ async function loginClient(){
     }
   }
 }
+function updateClientView(){
+  let logged = !!clientUser;
 
+  $('clientAuthBox').classList.toggle('hide', logged);
+  $('clientAccountBox').classList.toggle('hide', !logged);
+  $('clientFeatures').classList.toggle('hide', !logged);
 
-    updateClientView();
-    renderClient();
-    renderFavorites();
-
-    msg.innerText = 'تم تسجيل الدخول بنجاح.';
-  }catch(error){
-    msg.innerText = 'خطأ في الدخول: ' + error.message;
+  if(logged){
+    $('clientAccountName').innerText = clientUser.name;
+    $('clientAccountPhone').innerText = clientUser.phone;
+    $('clientName').value = clientUser.name;
+    $('clientPhone').value = clientUser.phone;
+    $('complaintPhone').value = clientUser.phone;
   }
 }
-}
-function updateClientView(){
- let logged=!!clientUser;
- $('clientAuthBox').classList.toggle('hide',logged);
- $('clientAccountBox').classList.toggle('hide',!logged);
- $('clientFeatures').classList.toggle('hide',!logged);
- if(logged){
-  $('clientAccountName').innerText=clientUser.name;
-  $('clientAccountPhone').innerText=clientUser.phone;
-  $('clientName').value=clientUser.name;
-  $('clientPhone').value=clientUser.phone;
-  /* إصلاح: حذفنا searchClientPhone لأنه غير موجود في الصفحة */
-  $('complaintPhone').value=clientUser.phone;
- }
-}
+
 async function logoutClient(){
   try {
     await auth.signOut();
