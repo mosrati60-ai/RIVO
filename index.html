@@ -472,9 +472,14 @@ async function loginClient(){
     }
   }
 }
+  const code = $('clientOtp').value.trim();
+  const msg = $('clientAuthMessage');
 
-
-async function verifyClientOTP(){
+  if(!confirmationResult || !/^\d{6}$/.test(code)){
+    msg.innerText = 'أدخل رمز SMS الصحيح';
+    return;
+  }
+ async function verifyClientOTP(){
   const code = $('clientOtp').value.trim();
   const msg = $('clientAuthMessage');
 
@@ -497,7 +502,6 @@ async function verifyClientOTP(){
 
     if(doc.exists){
       const data = doc.data();
-
       clientUser = {
         uid: user.uid,
         name: data.name,
@@ -530,6 +534,29 @@ async function verifyClientOTP(){
     $('clientOtpBox').classList.add('hide');
     $('clientAuthBox').classList.add('hide');
 
+    updateClientView();
+    renderClient();
+    renderFavorites();
+
+    msg.innerText = 'تم تسجيل الدخول بنجاح!';
+
+  }catch(error){
+    console.error('Client OTP Error:', error);
+    msg.innerText = 'خطأ في تأكيد الرمز: ' + error.message;
+  }
+}
+
+    updateClientView();
+    renderClient();
+    renderFavorites();
+
+    msg.innerText = 'تم تسجيل الدخول بنجاح!';
+
+  }catch(error){
+    console.error('Client OTP Error:', error);
+    msg.innerText = 'خطأ في تأكيد الرمز: ' + error.message;
+  }
+}
     updateClientView();
     renderClient();
     renderFavorites();
