@@ -607,10 +607,6 @@ async function loginClient(){
     msg.innerText = 'خطأ في الدخول: ' + error.message;
   }
 }
- updateClientView();
- $('clientAuthMessage').innerText='';
- renderClient();
- renderFavorites();
 }
 function updateClientView(){
  let logged=!!clientUser;
@@ -626,7 +622,6 @@ function updateClientView(){
   $('complaintPhone').value=clientUser.phone;
  }
 }
-function logoutClient(){
 async function logoutClient(){
   try {
     await auth.signOut();
@@ -647,22 +642,6 @@ async function logoutClient(){
       'تعذر تسجيل الخروج: ' + error.message;
   }
 }
-
-    updateClientView();
-
-    $('clientLoginPass').value = '';
-    $('clientRegisterPass').value = '';
-    $('clientRegisterConfirm').value = '';
-    $('clientRequests').innerHTML = '';
-    $('favorites').innerHTML = '';
-    $('clientResult').innerHTML = '';
-    $('clientAuthMessage').innerText = 'تم تسجيل الخروج بنجاح.';
-  } catch(error) {
-    $('clientAuthMessage').innerText =
-      'تعذر تسجيل الخروج: ' + error.message;
-  }
-}
-
 function forgotClientPassword(){
  let phone=$('clientLoginPhone').value.trim();
  if(!phone){
@@ -692,8 +671,6 @@ function registerAdmin(){
  $('adminLoginPhone').value=phone;
  $('adminError').innerText='تم إنشاء الحساب، سجّل الدخول.';
 }
-function loginAdmin(){
-
 async function loginAdmin(){
   const email = $('adminLoginPhone').value.trim();
   const password = $('adminPass').value;
@@ -790,6 +767,8 @@ async function calculateRoute(){
 }
 
 /* طلب الرحلة */
+
+/* طلب الرحلة */
 async function orderRide(){
 
   if(!clientUser || !auth.currentUser){
@@ -854,8 +833,7 @@ async function orderRide(){
     created: new Date().toISOString()
   };
 
-  try {
-
+  try{
     const doc = await db.collection('rides').add({
       ...ride,
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -879,25 +857,11 @@ async function orderRide(){
 
     renderClient();
 
-  } catch(error) {
-
+  }catch(error){
     console.error('Order Ride Error:', error);
-
-    alert('تعذر حفظ الطلب في Firebase: ' + error.message);
-
-  }
-}
-
-    renderClient();
-
-  } catch(error) {
     alert('تعذر حفظ الطلب في Firebase: ' + error.message);
   }
 }
-info">تم تسجيل الطلب محلياً. رمز تأكيد الرحلة متاعك: <b>${pin}</b>. ما تعطيه للسائق كان وقت بداية الرحلة.</div>`;
- renderClient();
-}
-
 /* عرض طلبات الحريف من Firebase */
 
 async function renderClient(){
@@ -1350,168 +1314,172 @@ async function acceptRide(id){
 
   try {
     const ref = db.collection('rides').doc(id);
-    const doc = await ref.get();
 
-    if(!doc.exists) return alert('الطلب غير موجود');
+    await db.runTransaction(async (transaction) => {
 
-    const r = doc.data();
+      const doc = await transaction.get(ref);
 
-    if(r.status !== 'جديد' || r.driverId !== null)
-      return alert('الطلب ما عادش متاح');
+      if(!doc.exists)
+        throw new Error('الطلب غير موجود');
 
-    await ref.update({
-      status: 'مقبولة',
-      driverId: auth.currentUser.uid,
-      driverName: driver.name,
-      driverPhone: driver.phone
+      const r = doc.data();
+
+      if(r.status !== 'جديد' || r.driverId)
+        throw new Error('الطلب ما عادش متاح لسائق آخر');
+
+      transaction.update(ref, {
+        status: 'مقبولة',
+        driverId: auth.currentUser.uid,
+        driverName: driver.name,
+        driverPhone: driver.phone
+      });
+
     });
 
     alert('تم قبول الرحلة بنجاح');
     renderDriver();
 
   } catch(error) {
-    console.error(error);
+    console.error('Accept Ride Error:', error);
     alert('تعذر قبول الرحلة: ' + error.message);
   }
 }
-
-
 async function markArrived(id){
 
   if(!driver || !auth.currentUser) return;
 
   try {
     const ref = db.collection('rides').doc(id);
-    const doc = await ref.get();
 
-    if(!doc.exists) return;
+    await db.runTransaction(async (transaction) => {
 
-    const r = doc.data();
+      const doc = await transaction.get(ref);
 
-    if(r.driverId !== auth.currentUser.uid || r.status !== 'مقبولة')
-      return alert('ما تنجمش تبدّل حالة الرحلة');
+      if(!doc.exists)
+        throw new Error('الطلب غير موجود');
 
-    await ref.update({status: 'السائق وصل'});
+      const r = doc.data();
+
+      if(
+        r.driverId !== auth.currentUser.uid ||
+        r.status !== 'مقبولة'
+      ){
+        throw new Error('ما تنجمش تبدّل حالة الرحلة');
+      }
+
+      transaction.update(ref, {
+        status: 'السائق وصل'
+      });
+
+    });
+
+    alert('تم تأكيد الوصول للحريف');
     renderDriver();
 
   } catch(error) {
+    console.error('Mark Arrived Error:', error);
     alert('تعذر تحديث الرحلة: ' + error.message);
   }
 }
-
-
 async function startRide(id){
 
-  if(!driver || !auth.currentUser) return;
-
-  const pin = $('pin-' + id)?.value.trim();
-
-  if(!pin) return alert('اكتب رمز الرحلة');
-
-  try {
-    const ref = db.collection('rides').doc(id);
-    const doc = await ref.get();
-
-    if(!doc.exists) return;
-
-    const r = doc.data();
-
-    if(r.driverId !== auth.currentUser.uid || r.status !== 'السائق وصل')
-      return alert('الرحلة غير جاهزة للانطلاق');
-
-    if(String(pin) !== String(r.pin))
-      return alert('رمز الرحلة غير صحيح');
-
-    await ref.update({status: 'جارية'});
-
-    alert('انطلقت الرحلة');
-    renderDriver();
-
-  } catch(error) {
-    alert('تعذر بدء الرحلة: ' + error.message);
-  }
-}
-
-
 async function finishRide(id){
 
   if(!driver || !auth.currentUser) return;
 
   try {
     const ref = db.collection('rides').doc(id);
-    const doc = await ref.get();
 
-    if(!doc.exists) return;
+    await db.runTransaction(async (transaction) => {
 
-    const r = doc.data();
+      const doc = await transaction.get(ref);
 
-    if(r.driverId !== auth.currentUser.uid || r.status !== 'جارية')
-      return alert('ما تنجمش تكمل الرحلة');
+      if(!doc.exists)
+        throw new Error('الرحلة غير موجودة');
 
-    await ref.update({
-      status: 'مكتملة',
-      completedAt: new Date().toISOString()
+      const r = doc.data();
+
+      if(
+        r.driverId !== auth.currentUser.uid ||
+        r.status !== 'جارية'
+      ){
+        throw new Error('ما تنجمش تكمل الرحلة');
+      }
+
+      transaction.update(ref, {
+        status: 'مكتملة',
+        completedAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+
     });
 
     alert('تم إكمال الرحلة بنجاح');
     renderDriver();
 
   } catch(error) {
+    console.error('Finish Ride Error:', error);
     alert('تعذر إكمال الرحلة: ' + error.message);
   }
 }
-
-async function finishRide(id){
-
-  if(!driver || !auth.currentUser) return;
-
-  try{
-    const ref = db.collection('rides').doc(id);
-    const doc = await ref.get();
-
-    if(!doc.exists) return;
-
-    const r = doc.data();
-
-    if(r.driverId !== auth.currentUser.uid ||
-       r.status !== 'جارية'){
-      return alert('ما تنجمش تكمل الرحلة');
-    }
-
-    await ref.update({
-      status: 'مكتملة',
-      completedAt: new Date().toISOString()
-    });
-
-    alert('تم إكمال الرحلة بنجاح');
-    renderDriver();
-
-  }catch(error){
-    alert('تعذر إكمال الرحلة: ' + error.message);
-  }
-}
-
-
 
 /* لوحة المسؤول */
-function renderAdmin(){
- let ds=getDrivers(),rs=getRides(),done=rs.filter(r=>r.status==='مكتملة');
- $('totalRequests').innerText=rs.length;
- $('completedRequests').innerText=done.length;
- $('totalIncome').innerText=done.reduce((s,r)=>s+r.fare,0).toFixed(2)+' د.ت';
- $('totalCommission').innerText=done.reduce((s,r)=>s+r.commission,0).toFixed(2)+' د.ت';
- $('driversList').innerHTML=ds.map(d=>`
- <div class="item"><b>${esc(d.name)}</b><br>${esc(d.phone)}<br>
- الحالة: ${d.active?'نشط':'متوقف'} — ${d.online?'متصل':'غير متصل'}<br>
- <button class="green" onclick="toggleDriver(${d.id})">${d.active?'إيقاف':'تفعيل'}</button>
- <button class="red" onclick="deleteDriver(${d.id})">حذف</button></div>
- `).join('')||'ما فماش سائقين';
-$('applications').innerHTML = 'جاري تحميل مطالب السائقين...';
 
-db.collection('driverApplications')
-  .orderBy('createdAt', 'desc')
-  .get()
-  .then(snapshot => {
+async function renderAdmin(){
+
+  const rs = getRides();
+  const done = rs.filter(r => r.status === 'مكتملة');
+
+  $('totalRequests').innerText = rs.length;
+  $('completedRequests').innerText = done.length;
+
+  $('totalIncome').innerText =
+    done.reduce((s,r) => s + Number(r.fare || 0), 0).toFixed(2) + ' د.ت';
+
+  $('totalCommission').innerText =
+    done.reduce((s,r) => s + Number(r.commission || 0), 0).toFixed(2) + ' د.ت';
+
+  $('driversList').innerText = 'جاري تحميل السائقين...';
+
+  try {
+    const snapshot = await db.collection('drivers').get();
+
+    $('driversList').innerHTML = snapshot.empty
+      ? 'ما فماش سائقين'
+      : snapshot.docs.map(doc => {
+          const d = doc.data();
+
+          return `
+            <div class="item">
+              <b>${esc(d.name)}</b><br>
+              ${esc(d.phone)}<br>
+              الحالة: ${d.active ? 'نشط' : 'متوقف'}
+              — ${d.online ? 'متصل' : 'غير متصل'}<br>
+
+              <button class="green"
+                onclick="toggleDriver('${doc.id}', ${d.active === true})">
+                ${d.active ? 'إيقاف' : 'تفعيل'}
+              </button>
+
+              <button class="red"
+                onclick="deleteDriver('${doc.id}')">
+                حذف
+              </button>
+            </div>
+          `;
+        }).join('');
+
+  } catch(error) {
+    $('driversList').innerText =
+      'خطأ في تحميل السائقين: ' + error.message;
+  }
+
+  $('applications').innerHTML = 'جاري تحميل مطالب السائقين...';
+
+  try {
+    const snapshot = await db.collection('driverApplications')
+      .orderBy('createdAt', 'desc')
+      .get();
+
     $('applications').innerHTML = snapshot.empty
       ? 'ما فماش مطالب'
       : snapshot.docs.map(doc => {
@@ -1521,52 +1489,90 @@ db.collection('driverApplications')
             <div class="item">
               <b>${esc(x.name)}</b> — ${esc(x.phone)}<br>
               ${esc(x.info)}<br>
-              ${esc(x.status)}<br>
-              <button class="green"
-                onclick="approveApplication('${doc.id}')">
-                قبول وإضافة كسائق
-              </button>
+              ${esc(x.status)}
+              ${x.status === 'قيد المراجعة' ? `
+                <button class="green"
+                  onclick="approveApplication('${doc.id}')">
+                  قبول المطلب
+                </button>
+              ` : ''}
             </div>
           `;
         }).join('');
-  })
-  .catch(error => {
+
+  } catch(error) {
     $('applications').innerText =
       'خطأ في تحميل المطالب: ' + error.message;
-  });
- $('announcementView').innerText=read('taxiAnnouncement','لا يوجد إعلان حالياً');
+  }
+
+  $('announcementView').innerText =
+    read('taxiAnnouncement', 'لا يوجد إعلان حالياً');
 }
-function toggleDriver(id){
- let a=getDrivers(),d=a.find(x=>x.id===id);
- if(d)d.active=!d.active;
- write('taxiDrivers',a);renderAdmin();
+
+
+async function toggleDriver(id, currentStatus){
+
+  if(!auth.currentUser){
+    return alert('لازم المسؤول يعمل تسجيل دخول');
+  }
+
+  try {
+    await db.collection('drivers').doc(id).update({
+      active: !currentStatus
+    });
+
+    alert('تم تحديث حالة السائق');
+    renderAdmin();
+
+  } catch(error) {
+    console.error('Toggle Driver:', error);
+    alert('تعذر تحديث السائق: ' + error.message);
+  }
 }
-function deleteDriver(id){
- if(!confirm('متأكد تحب تحذف السائق؟'))return;
- write('taxiDrivers',getDrivers().filter(d=>d.id!==id));renderAdmin();
+
+
+async function approveApplication(id){
+
+  if(!auth.currentUser){
+    return alert('لازم المسؤول يعمل تسجيل دخول');
+  }
+
+  if(!confirm('متأكد تحب تقبل مطلب السائق؟')){
+    return;
+  }
+
+  try{
+    const ref = db.collection('driverApplications').doc(id);
+
+    await db.runTransaction(async (transaction) => {
+      const doc = await transaction.get(ref);
+
+      if(!doc.exists){
+        throw new Error('المطلب غير موجود');
+      }
+
+      const data = doc.data();
+
+      if(data.status !== 'قيد المراجعة'){
+        throw new Error('المطلب تمت معالجته من قبل');
+      }
+
+      transaction.update(ref, {
+        status: 'تم القبول',
+        approvedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        approvedBy: auth.currentUser.uid
+      });
+    });
+
+    alert('تم قبول المطلب بنجاح');
+    renderAdmin();
+
+  }catch(error){
+    console.error('Approve Application:', error);
+    alert('تعذر قبول المطلب: ' + error.message);
+  }
 }
-function resolveComplaint(id){
- let a=read('taxiComplaints',[]),c=a.find(x=>x.id===id);
- if(c)c.status='تمت المعالجة';
- write('taxiComplaints',a);renderAdmin();
-}
-function approveApplication(id){
- let apps=read('taxiApplications',[]),x=apps.find(a=>a.id===id);
- if(!x)return;
- let pass=prompt('عيّن كلمة سر مؤقتة للسائق:');
- if(!pass)return;
- let ds=getDrivers();
- if(ds.some(d=>d.phone===x.phone))return alert('السائق موجود مسبقاً');
- ds.push({id:Date.now(),name:x.name,phone:x.phone,password:pass,active:true,online:false});
- write('taxiDrivers',ds);x.status='تم القبول';
- write('taxiApplications',apps);renderAdmin();
-}
-function publishAnnouncement(){
- let t=$('announcementText').value.trim();
- if(!t)return alert('اكتب الإعلان');
- write('taxiAnnouncement',t);
- $('announcementResult').innerText='تم حفظ الإعلان';renderAdmin();
-}
+
 
 /* النسخ الاحتياطي والتصدير */
 function exportCSV(){
