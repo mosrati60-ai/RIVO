@@ -381,43 +381,10 @@ function openPage(id){
       stopDriverNewRides();
       stopDriverNewRides = null;
     }
-
     renderDriver();
   }
 
   window.scrollTo(0,0);
-}
-
-  function updateClientView(){
-  const authBox = $('clientAuthBox');
-
-  console.log('CLIENT ELEMENTS:', {
-    authBox: $('clientAuthBox'),
-    accountBox: $('clientAccountBox'),
-    features: $('clientFeatures')
-  });
-
-  const accountBox = $('clientAccountBox');
-  const features = $('clientFeatures');
-
-  // بقية الدالة...
-}
-  setTimeout(()=>{
-   initMap();
-   if(map)map.invalidateSize();
-  },300);
- }
- if(id==='adminLogin')checkAdmin();
- if(id==='adminPanel'){loadSettings();renderAdmin()}
- if(id==='driverPanel'){
-  if(stopDriverNewRides){
-    stopDriverNewRides();
-    stopDriverNewRides = null;
-  }
-
-  renderDriver();
-}
- window.scrollTo(0,0);
 }
 function goHome(){
  document.querySelectorAll('.page').forEach(x=>x.style.display='none');
