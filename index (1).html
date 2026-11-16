@@ -323,7 +323,14 @@ function openPage(id){
  }
  if(id==='adminLogin')checkAdmin();
  if(id==='adminPanel'){loadSettings();renderAdmin()}
- if(id==='driverPanel')renderDriver();
+ if(id==='driverPanel'){
+  if(stopDriverNewRides){
+    stopDriverNewRides();
+    stopDriverNewRides = null;
+  }
+
+  renderDriver();
+}
  window.scrollTo(0,0);
 }
 function goHome(){
