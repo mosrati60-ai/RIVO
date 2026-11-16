@@ -576,25 +576,21 @@ async function logoutClient(){
   }
 }
 
+function updateClientView(){
+  const logged = !!clientUser;
 
-async function forgotClientPassword(){
-  const email = $('clientLoginEmail').value.trim().toLowerCase();
-  const msg = $('clientAuthMessage');
+  $('clientAuthBox').classList.toggle('hide', logged);
+  $('clientAccountBox').classList.toggle('hide', !logged);
+  $('clientFeatures').classList.toggle('hide', !logged);
 
-  if(!email){
-    msg.innerText = 'اكتب البريد الإلكتروني أولاً';
-    return;
-  }
-
-  try{
-    await auth.sendPasswordResetEmail(email);
-    msg.innerText = 'بعثنالك رابط تغيير كلمة السر إلى بريدك الإلكتروني.';
-  }catch(error){
-    console.error('Password Reset Error:', error);
-    msg.innerText = 'تعذر إرسال رابط تغيير كلمة السر: ' + error.message;
+  if(logged){
+    $('clientAccountName').innerText = clientUser.name || '';
+    $('clientAccountPhone').innerText = clientUser.phone || '';
+    $('clientName').value = clientUser.name || '';
+    $('clientPhone').value = clientUser.phone || '';
+    $('complaintPhone').value = clientUser.phone || '';
   }
 }
-
 function forgotClientPassword(){
  let phone=$('clientLoginPhone').value.trim();
  if(!phone){
