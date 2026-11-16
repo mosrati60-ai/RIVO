@@ -1907,6 +1907,133 @@ function clearAllData(){
 }
 
 
+/* عرض طلبات الحريف */
+async function renderClient(){
+  if(!clientUser || !auth.currentUser) return;
+
+  const box = $('clientRequests');
+  box.innerText = 'جاري تحميل طلباتك...';
+
+  try{
+    const snapshot = await db.collection('rides')
+      .where('clientId', '==', auth.currentUser.uid)
+      .get();
+
+    const rides = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+
+    rides.sort((a,b) => {
+      const ta = a.createdAt?.toMillis?.() || 0;
+      const tb = b.createdAt?.toMillis?.() || 0;
+      return tb - ta;
+    });
+
+    box.innerHTML = rides.map(r => `
+      <div class="item">
+        <b>رحلة: ${esc(r.id)}</b><br>
+        الانطلاق: ${esc(r.from || '')}<br>
+        الوجهة: ${esc(r.to || '')}<br>
+        السعر: ${Number(r.fare || 0).toFixed(2)} د.ت<br>
+        الحالة: <b>${esc(r.status || '')}</b><br>
+
+        ${r.status === 'جديد' ? `
+          <button class="red" onclick="cancelRide('${r.id}')">
+            إلغاء الطلب
+          </button>
+        ` : ''}
+
+        ${r.status === 'مكتملة' && !r.rating ? `
+          <p>قيّم الرحلة:</p>
+          ${[1,2,3,4,5].map(n => `
+            <button class="blue" onclick="rateRide('${r.id}',${n})">
+              ${n} ⭐
+            </button>
+          `).join('')}
+        ` : ''}
+
+        ${r.rating ? `تقييمك: ${r.rating} ⭐` : ''}
+      </div>
+    `).join('') || 'ما عندك حتى طلب رحلة حالياً';
+
+  }catch(error){
+    console.error('Render Client Error:',error);
+    box.innerText = 'تعذّر تحميل الطلبات: ' + error.message;
+  }
+}
+
+/* تأكيد وصول السائق */
+async function markArrived(id){
+  if(!driver || !auth.currentUser) return;
+
+  try{
+    const ref = db.collection('rides').doc(id);
+
+    await db.runTransaction(async transaction => {
+      const doc = await transaction.get(ref);
+
+      if(!doc.exists) throw new Error('الرحلة غير موجودة');
+
+      const ride = doc.data();
+
+      if(
+        ride.driverId !== auth.currentUser.uid ||
+        ride.status !== 'مقبولة'
+      ){
+        throw new Error('ما تنجمش تأكد الوصول للرحلة هاذي');
+      }
+
+      transaction.update(ref,{
+        status: 'السائق وصل',
+        arrivedAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+    });
+
+    alert('تم تأكيد الوصول');
+    await renderDriver();
+
+  }catch(error){
+    console.error('Mark Arrived Error:',error);
+    alert('تعذّر تأكيد الوصول: ' + error.message);
+  }
+}
+
+/* إرسال شكوى الحريف */
+async function sendComplaint(){
+  if(!clientUser || !auth.currentUser){
+    return alert('سجّل الدخول أولاً');
+  }
+
+  const message = $('complaintText').value.trim();
+
+  if(!message){
+    $('complaintResult').innerText = 'اكتب الشكوى أولاً';
+    return;
+  }
+
+  try{
+    $('complaintResult').innerText = 'جاري إرسال الشكوى...';
+
+    await db.collection('complaints').add({
+      clientId: auth.currentUser.uid,
+      name: clientUser.name || '',
+      phone: clientUser.phone || '',
+      message: message,
+      status: 'جديدة',
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+
+    $('complaintText').value = '';
+    $('complaintResult').innerText = 'تم إرسال الشكوى بنجاح';
+
+  }catch(error){
+    console.error('Send Complaint Error:',error);
+    $('complaintResult').innerText =
+      'تعذّر إرسال الشكوى: ' + error.message;
+  }
+}
+
 auth.onAuthStateChanged(async user => {
  console.log('Firebase User:', user ? user.uid : 'NO USER');
   if (!user) {
