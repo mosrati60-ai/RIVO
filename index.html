@@ -368,11 +368,27 @@ function getClientFavorites(){
   return read('taxiFavorites_' + (clientUser?.phone || ''),[]);
 }
 
-function normalizeClientPhone(phone){
-  phone = phone.replace(/\s+/g,'');
 
-  if(phone.startsWith('0')) return '+216' + phone.slice(1);
-  if(phone.startsWith('216')) return '+' + phone;
+function normalizeClientPhone(phone){
+  phone = String(phone || '').trim();
+
+  // نحذف المسافات والشرطات والأقواس
+  phone = phone.replace(/[\s\-().]/g,'');
+
+  // 00216XXXXXXXX -> +216XXXXXXXX
+  if(phone.startsWith('00216')){
+    phone = '+216' + phone.slice(5);
+  }
+
+  // 216XXXXXXXX -> +216XXXXXXXX
+  else if(phone.startsWith('216')){
+    phone = '+' + phone;
+  }
+
+  // 0XXXXXXXX -> +216XXXXXXXX
+  else if(phone.startsWith('0')){
+    phone = '+216' + phone.slice(1);
+  }
 
   return phone;
 }
