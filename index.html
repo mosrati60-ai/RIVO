@@ -258,7 +258,12 @@ body.dark input,body.dark select,body.dark textarea{background:#203650;color:whi
   <div id="adminLoginBox" class="hide">
    <h3>تسجيل الدخول</h3>
    <p id="adminWelcome"></p>
-   <input id="adminLoginPhone" placeholder="رقم الهاتف">
+ <input
+  id="adminLoginEmail"
+  type="email"
+  placeholder="البريد الإلكتروني"
+  autocomplete="username"
+>
    <input id="adminPass" type="password" placeholder="كلمة السر">
    <button class="primary" onclick="loginAdmin()">دخول الإدارة</button>
   </div>
