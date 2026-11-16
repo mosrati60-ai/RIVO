@@ -1778,6 +1778,7 @@ async function toggleDriver(id, currentStatus) {
   }
 }
 
+
 async function approveApplication(id){
 
   if(!auth.currentUser){
@@ -1791,7 +1792,7 @@ async function approveApplication(id){
   try{
     const ref = db.collection('driverApplications').doc(id);
 
-    await db.runTransaction(async (transaction) => {
+    await db.runTransaction(async(transaction)=>{
       const doc = await transaction.get(ref);
 
       if(!doc.exists){
@@ -1804,18 +1805,35 @@ async function approveApplication(id){
         throw new Error('المطلب تمت معالجته من قبل');
       }
 
-      transaction.update(ref, {
+      if(!data.uid || !data.email){
+        throw new Error('المطلب لا يحتوي على حساب السائق وإيميله');
+      }
+
+      const driverRef = db.collection('drivers').doc(data.uid);
+
+      transaction.set(driverRef,{
+        uid: data.uid,
+        name: data.name,
+        email: data.email,
+        phone: data.phone,
+        info: data.info || '',
+        active: true,
+        online: false,
+        approvedAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+
+      transaction.update(ref,{
         status: 'تم القبول',
         approvedAt: firebase.firestore.FieldValue.serverTimestamp(),
         approvedBy: auth.currentUser.uid
       });
     });
 
-    alert('تم قبول المطلب بنجاح');
-    renderAdmin();
+    alert('تم قبول السائق وتفعيل حسابه بنجاح');
+    await renderAdmin();
 
   }catch(error){
-    console.error('Approve Application:', error);
+    console.error('Approve Application:',error);
     alert('تعذر قبول المطلب: ' + error.message);
   }
 }
