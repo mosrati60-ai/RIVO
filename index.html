@@ -537,41 +537,38 @@ async function loginClient(){
 }
 
 function updateClientView(){
-  let logged = !!clientUser;
+  const authBox = $('clientAuthBox');
+  const accountBox = $('clientAccountBox');
+  const features = $('clientFeatures');
 
-  $('clientAuthBox').classList.toggle('hide', logged);
-  $('clientAccountBox').classList.toggle('hide', !logged);
-  $('clientFeatures').classList.toggle('hide', !logged);
+  if(!authBox || !accountBox || !features){
+    console.error('Client HTML elements missing:', {
+      clientAuthBox: !!authBox,
+      clientAccountBox: !!accountBox,
+      clientFeatures: !!features
+    });
+    return;
+  }
+
+  const logged = !!clientUser;
+
+  authBox.classList.toggle('hide', logged);
+  accountBox.classList.toggle('hide', !logged);
+  features.classList.toggle('hide', !logged);
 
   if(logged){
-    $('clientAccountName').innerText = clientUser.name;
-    $('clientAccountPhone').innerText = clientUser.phone;
-    $('clientName').value = clientUser.name;
-    $('clientPhone').value = clientUser.phone;
-    $('complaintPhone').value = clientUser.phone;
+    $('clientAccountName').innerText = clientUser.name || '';
+    $('clientAccountPhone').innerText = clientUser.phone || '';
+    $('clientName').value = clientUser.name || '';
+    $('clientPhone').value = clientUser.phone || '';
+
+    const complaintPhone = $('complaintPhone');
+    if(complaintPhone){
+      complaintPhone.value = clientUser.phone || '';
+    }
   }
 }
 
-async function logoutClient(){
-  try{
-    await auth.signOut();
-
-    clientUser = null;
-    updateClientView();
-
-    $('clientLoginPass').value = '';
-    $('clientRegisterPass').value = '';
-    $('clientRegisterConfirm').value = '';
-    $('clientRequests').innerHTML = '';
-    $('favorites').innerHTML = '';
-    $('clientResult').innerHTML = '';
-    $('clientAuthMessage').innerText = 'تم تسجيل الخروج بنجاح.';
-
-  }catch(error){
-    $('clientAuthMessage').innerText =
-      'تعذر تسجيل الخروج: ' + error.message;
-  }
-}
 
 async function forgotClientPassword(){
   const email = $('clientLoginEmail').value.trim().toLowerCase();
