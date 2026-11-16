@@ -472,6 +472,8 @@ async function loginClient(){
     }
   }
 }
+ 
+async function verifyClientOTP(){
   const code = $('clientOtp').value.trim();
   const msg = $('clientAuthMessage');
 
@@ -479,20 +481,13 @@ async function loginClient(){
     msg.innerText = 'أدخل رمز SMS الصحيح';
     return;
   }
- async function verifyClientOTP(){
-  const code = $('clientOtp').value.trim();
-  const msg = $('clientAuthMessage');
 
-  if(!confirmationResult || !/^\d{6}$/.test(code)){
-    msg.innerText = 'أدخل رمز SMS الصحيح';
-    return;
-  }
-
-  try{
+  try {
     const result = await confirmationResult.confirm(code);
     const user = result.user;
 
-    const doc = await db.collection('clients').doc(user.uid).get();
+    const doc = await db.collection('clients')
+      .doc(user.uid).get();
 
     if(pendingClient?.mode === 'login' && !doc.exists){
       await auth.signOut();
@@ -502,12 +497,14 @@ async function loginClient(){
 
     if(doc.exists){
       const data = doc.data();
+
       clientUser = {
         uid: user.uid,
         name: data.name,
         phone: user.phoneNumber
       };
-    }else{
+
+    } else {
       if(!pendingClient || !pendingClient.name){
         await auth.signOut();
         msg.innerText = 'معلومات إنشاء الحساب ناقصة.';
@@ -533,6 +530,18 @@ async function loginClient(){
 
     $('clientOtpBox').classList.add('hide');
     $('clientAuthBox').classList.add('hide');
+
+    updateClientView();
+    renderClient();
+    renderFavorites();
+
+    msg.innerText = 'تم تسجيل الدخول بنجاح!';
+
+  } catch(error) {
+    console.error('Client OTP Error:', error);
+    msg.innerText = 'خطأ في تأكيد الرمز: ' + error.message;
+  }
+}
 
     updateClientView();
     renderClient();
