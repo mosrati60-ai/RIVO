@@ -1367,9 +1367,10 @@ console.log('RENDER DRIVER START');
 
 // استقبال الطلبات الجديدة مباشرة من Firebase
 if (!stopDriverNewRides) {
-  stopDriverNewRides = db.collection('rides')
-    .where('status', '==', 'جديد')
-    .onSnapshot(snapshot => {
+ db.collection('rides')
+  .where('status', '==', 'جديد')
+  .where('driverId', '==', null)
+  .onSnapshot(snapshot => {
       console.log('LIVE UPDATE وصل:', snapshot.size);
 
       if (driver && auth.currentUser) {
@@ -1389,8 +1390,9 @@ if (!stopDriverNewRides) {
     const [newSnapshot, mineSnapshot] = await Promise.all([
 
       db.collection('rides')
-        .where('status', '==', 'جديد')
-        .get(),
+  .where('status', '==', 'جديد')
+  .where('driverId', '==', null)
+  .get(),
 
       db.collection('rides')
         .where('driverId', '==', uid)
