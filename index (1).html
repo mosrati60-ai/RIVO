@@ -689,6 +689,7 @@ function registerAdmin(){
  $('adminLoginPhone').value=phone;
  $('adminError').innerText='تم إنشاء الحساب، سجّل الدخول.';
 }
+
 async function loginAdmin(){
   const email = $('adminLoginPhone').value.trim();
   const password = $('adminPass').value;
@@ -712,28 +713,15 @@ async function loginAdmin(){
 
     $('adminError').innerText = '';
     openPage('adminPanel');
-    renderAdmin();
-    $('adminRequests').innerHTML = rs.length === 0
-      ? 'ما فماش طلبات حالياً'
-      : rs.map(r => `
-          <div class="item">
-            <b>طلب رقم:</b> ${esc(r.id)}<br>
-            الحريف: ${esc(r.name)}<br>
-            الهاتف: ${esc(r.phone)}<br>
-            الانطلاق: ${esc(r.from)}<br>
-            الوجهة: ${esc(r.to)}<br>
-            المسافة: ${Number(r.distance || 0).toFixed(2)} كم<br>
-            السعر: ${Number(r.fare || 0).toFixed(2)} د.ت<br>
-            الحالة: ${esc(r.status)}<br>
-            السائق: ${esc(r.driverName || 'لم يتم تعيين سائق')}
-          </div>
-        `).join('');
+    await renderAdmin();
+
   } catch(error) {
     console.error('Admin Login Error:', error);
     $('adminError').innerText =
       'الدخول فشل: ' + error.message;
   }
 }
+
 
 /* الخريطة */
 function initMap(){
@@ -1489,20 +1477,7 @@ async function renderAdmin(){
       done.reduce((s,r) => s + Number(r.commission || 0), 0).toFixed(2) + ' د.ت';
 
     // عرض جميع الطلبات في لوحة الإدارة
-    $('adminRequests').innerHTML = rs.length === 0
-      ? 'ما فماش طلبات حالياً'
-      : rs.map(r => `
-          <div class="item">
-            <b>طلب رقم:</b> ${esc(r.id)}<br>
-            الحريف: ${esc(r.name)}<br>
-            الهاتف: ${esc(r.phone)}<br>
-            الانطلاق: ${esc(r.from)}<br>
-            الوجهة: ${esc(r.to)}<br>
-            المسافة: ${Number(r.distance || 0).toFixed(2)} كم<br>
-            السعر: ${Number(r.fare || 0).toFixed(2)} د.ت<br>
-            الحالة: ${esc(r.status)}<br>
-            السائق: ${esc(r.driverName || 'لم يتم تعيين سائق')}
-          </div>
+   
         `).join('');
 
   } catch(error) {
