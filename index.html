@@ -1512,6 +1512,8 @@ async function acceptRide(id){
     return alert('لازم تكون متصل');
 
   try {
+   console.log('DRIVER:', driver);
+console.log('AUTH UID:', auth.currentUser?.uid);
     const ref = db.collection('rides').doc(id);
 
     await db.runTransaction(async (transaction) => {
