@@ -1374,9 +1374,16 @@ async function acceptRide(id){
     alert('تعذر قبول الرحلة: ' + error.message);
   }
 }
-async function markArrived(id){
+
+async function startRide(id){
 
   if(!driver || !auth.currentUser) return;
+
+  const pin = $('pin-' + id).value.trim();
+
+  if(!/^\d{4}$/.test(pin)){
+    return alert('أدخل رمز PIN صحيح من 4 أرقام');
+  }
 
   try {
     const ref = db.collection('rides').doc(id);
@@ -1386,31 +1393,37 @@ async function markArrived(id){
       const doc = await transaction.get(ref);
 
       if(!doc.exists)
-        throw new Error('الطلب غير موجود');
+        throw new Error('الرحلة غير موجودة');
 
       const r = doc.data();
 
       if(
         r.driverId !== auth.currentUser.uid ||
-        r.status !== 'مقبولة'
+        r.status !== 'السائق وصل'
       ){
-        throw new Error('ما تنجمش تبدّل حالة الرحلة');
+        throw new Error('ما تنجمش تبدأ الرحلة');
+      }
+
+      if(String(r.pin) !== pin){
+        throw new Error('رمز PIN غير صحيح');
       }
 
       transaction.update(ref, {
-        status: 'السائق وصل'
+        status: 'جارية',
+        startedAt: firebase.firestore.FieldValue.serverTimestamp()
       });
 
     });
 
-    alert('تم تأكيد الوصول للحريف');
+    alert('تم تأكيد بداية الرحلة');
     renderDriver();
 
   } catch(error) {
-    console.error('Mark Arrived Error:', error);
-    alert('تعذر تحديث الرحلة: ' + error.message);
+    console.error('Start Ride Error:', error);
+    alert('تعذر بداية الرحلة: ' + error.message);
   }
 }
+
 async function finishRide(id){
 
   if(!driver || !auth.currentUser) return;
@@ -1477,48 +1490,20 @@ async function renderAdmin(){
       done.reduce((s,r) => s + Number(r.commission || 0), 0).toFixed(2) + ' د.ت';
 
     // عرض جميع الطلبات في لوحة الإدارة
-   
-        `).join('');
-
-  } catch(error) {
-    console.error('Load Rides Error:', error);
-    $('totalRequests').innerText = 'خطأ';
-    $('completedRequests').innerText = 'خطأ';
-    $('totalIncome').innerText = 'خطأ';
-    $('totalCommission').innerText = 'خطأ';
-    $('adminRequests').innerText =
-      'خطأ في تحميل الطلبات: ' + error.message;
-  }
-
-  $('driversList').innerText = 'جاري تحميل السائقين...';
-
-  try {
-    const snapshot = await db.collection('drivers').get();
-
-    $('driversList').innerHTML = snapshot.empty
-      ? 'ما فماش سائقين'
-      : snapshot.docs.map(doc => {
-          const d = doc.data();
-
-          return `
-            <div class="item">
-              <b>${esc(d.name)}</b><br>
-              ${esc(d.phone)}<br>
-              الحالة: ${d.active ? 'نشط' : 'متوقف'}
-              — ${d.online ? 'متصل' : 'غير متصل'}<br>
-
-              <button class="green"
-                onclick="toggleDriver('${doc.id}', ${d.active === true})">
-                ${d.active ? 'إيقاف' : 'تفعيل'}
-              </button>
-
-              <button class="red"
-                onclick="deleteDriver('${doc.id}')">
-                حذف
-              </button>
-            </div>
-          `;
-        }).join('');
+   // عرض جميع الطلبات في لوحة الإدارة
+$('adminRequests').innerHTML = rs.map(r => `
+  <div class="item">
+    <b>طلب رقم:</b> ${esc(r.id)}<br>
+    الحريف: ${esc(r.name || '')}<br>
+    الهاتف: ${esc(r.phone || '')}<br>
+    الانطلاق: ${esc(r.from || '')}<br>
+    الوجهة: ${esc(r.to || '')}<br>
+    المسافة: ${Number(r.distance || 0).toFixed(2)} كم<br>
+    السعر: ${Number(r.fare || 0).toFixed(2)} د.ت<br>
+    الحالة: ${esc(r.status || '')}<br>
+    السائق: ${esc(r.driverName || 'لم يتم تعيين سائق')}
+  </div>
+`).join('') || 'ما فماش طلبات حالياً';
 
   } catch(error) {
     $('driversList').innerText =
