@@ -144,7 +144,24 @@ body.dark input,body.dark select,body.dark textarea{background:#203650;color:whi
   <div class="card">
    <h2>🇹🇳 فضاء الحريف</h2>
    <p>اختار مكان الانطلاق والوجهة.</p>
-   <button class="blue" onclick="locateMe()">📍 حدّد موقعي الحالي GPS</button>
+   <button class="blue" onclick="locateMe()">📍 حدّد موقعي الحالي GPS</button
+ 
+<div class="destination-search">
+  <h3>🏁 وين تحب تمشي؟</h3>
+  <input
+    id="destinationSearch"
+    type="text"
+    placeholder="اكتب اسم المكان أو العنوان..."
+    oninput="searchDestination(this.value)"
+    autocomplete="off"
+  >
+  <div id="destinationSuggestions"></div>
+
+  <button class="blue" onclick="chooseDestinationOnMap()">
+    📍 اختار الوجهة من الخريطة
+  </button>
+</div>
+
    <div id="clientMap" class="map"></div>
    <div id="mapHelp" class="info">اضغط GPS أو اختار الانطلاق على الخريطة، وبعد اختار الوجهة.</div>
    <p>📍 الانطلاق: <b id="fromText">لم يتم الاختيار</b></p>
@@ -682,6 +699,77 @@ function pickPoint(p){
   $('mapHelp').innerText='تبدّل الانطلاق. اختار الوجهة.';
  }
 }
+  
+function chooseDestinationOnMap(){
+  if(!from){
+    $('mapHelp').innerText='حدد مكان الانطلاق أولاً باستعمال GPS أو الخريطة.';
+    return;
+  }
+
+  $('mapHelp').innerText='اضغط على المكان الذي تريد الوصول إليه في الخريطة.';
+  map.setView(from,14);
+  window.selectingDestination = true;
+}
+
+async function searchDestination(value){
+  const box = $('destinationSuggestions');
+  box.innerHTML = '';
+
+  if(value.trim().length < 3) return;
+
+  box.innerText = 'جاري البحث عن العنوان...';
+
+  try{
+    const url = 'https://nominatim.openstreetmap.org/search?format=json&limit=5&q='
+      + encodeURIComponent(value + ', Tunisia');
+
+    const response = await fetch(url);
+    const results = await response.json();
+
+    box.innerHTML = '';
+
+    results.forEach(place=>{
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'blue';
+      button.style.display = 'block';
+      button.style.width = '100%';
+      button.style.margin = '5px 0';
+      button.textContent = place.display_name;
+
+      button.onclick = ()=>{
+        const p = [Number(place.lat),Number(place.lon)];
+
+        if(!from){
+          $('mapHelp').innerText='حدد الانطلاق أولاً باستعمال GPS أو الخريطة.';
+          return;
+        }
+
+        to = p;
+
+        if(m2) map.removeLayer(m2);
+        m2 = L.marker(p).addTo(map);
+
+        $('toText').innerText = place.display_name;
+        $('destinationSearch').value = place.display_name;
+        box.innerHTML = '';
+
+        map.fitBounds([from,to],{padding:[30,30]});
+        calculateRoute();
+      };
+
+      box.appendChild(button);
+    });
+
+    if(!results.length){
+      box.textContent='لم يتم العثور على عنوان. جرّب كتابة اسم آخر.';
+    }
+  }catch(error){
+    box.textContent='تعذّر البحث. حاول مرة أخرى.';
+    console.error(error);
+  }
+}
+
 function locateMe(){
  if(!navigator.geolocation)return alert('GPS غير متوفر في المتصفح');
  $('mapHelp').innerText='جاري تحديد موقعك...';
