@@ -450,14 +450,39 @@ async function verifyClientOTP(){
   }
 }
 function loginClient(){
- let phone=$('clientLoginPhone').value.trim();
- let pass=$('clientLoginPass').value;
- let user=getClients().find(c=>c.phone===phone&&c.password===pass);
- if(!user){
-  $('clientAuthMessage').innerText='رقم الهاتف أو كلمة السر غالطة';
-  return;
- }
- clientUser=user;
+async function loginClient(){
+  const msg = $('clientAuthMessage');
+
+  try{
+    const user = auth.currentUser;
+
+    if(!user){
+      msg.innerText = 'سجّل حسابك أو أكّد رقم هاتفك برمز SMS أولاً.';
+      return;
+    }
+
+    const doc = await db.collection('clients').doc(user.uid).get();
+
+    if(!doc.exists){
+      msg.innerText = 'الحساب غير موجود في قاعدة البيانات.';
+      return;
+    }
+
+    clientUser = {
+      uid: user.uid,
+      name: doc.data().name,
+      phone: user.phoneNumber
+    };
+
+    updateClientView();
+    renderClient();
+    renderFavorites();
+
+    msg.innerText = 'تم تسجيل الدخول بنجاح.';
+  }catch(error){
+    msg.innerText = 'خطأ في الدخول: ' + error.message;
+  }
+}
  updateClientView();
  $('clientAuthMessage').innerText='';
  renderClient();
@@ -905,6 +930,31 @@ function clearAllData(){
  Object.keys(localStorage).filter(k=>k.startsWith('taxi')).forEach(k=>localStorage.removeItem(k));
  alert('تم حذف البيانات المحلية');location.reload();
 }
+auth.onAuthStateChanged(async user => {
+  if (!user) {
+    clientUser = null;
+    updateClientView();
+    return;
+  }
+
+  try {
+    const doc = await db.collection('clients').doc(user.uid).get();
+
+    if (doc.exists) {
+      clientUser = {
+        uid: user.uid,
+        name: doc.data().name,
+        phone: user.phoneNumber
+      };
+
+      updateClientView();
+      renderClient();
+      renderFavorites();
+    }
+  } catch (error) {
+    console.error('Firebase Auth:', error);
+  }
+});
 </script>
 </body>
 </html>
