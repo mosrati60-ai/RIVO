@@ -371,22 +371,18 @@ function getClientFavorites(){
 
 function normalizeClientPhone(phone){
   phone = String(phone || '').trim();
-
-  // نحذف المسافات والشرطات والأقواس
   phone = phone.replace(/[\s\-().]/g,'');
 
-  // 00216XXXXXXXX -> +216XXXXXXXX
   if(phone.startsWith('00216')){
     phone = '+216' + phone.slice(5);
   }
-
-  // 216XXXXXXXX -> +216XXXXXXXX
   else if(phone.startsWith('216')){
     phone = '+' + phone;
   }
-
-  // 0XXXXXXXX -> +216XXXXXXXX
-  else if(phone.startsWith('0')){
+  else if(/^\d{8}$/.test(phone)){
+    phone = '+216' + phone;
+  }
+  else if(/^0\d{8}$/.test(phone)){
     phone = '+216' + phone.slice(1);
   }
 
