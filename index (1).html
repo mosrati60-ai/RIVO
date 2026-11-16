@@ -344,18 +344,44 @@ function toggleBooking(){
 }
 
 /* حساب الحريف */
-function getClients(){return read('taxiClients',[])}
-function getClientFavorites(){
- return read('taxiFavorites_'+clientUser.phone,[]);
-}
-function registerClient(){
+
+/* حساب الحريف */
+
 let confirmationResult = null;
 let pendingClient = null;
 let recaptchaVerifier = null;
 
-function registerClient(){
+function getClients(){
+  return read('taxiClients',[]);
+}
+
+function getClientFavorites(){
+  return read('taxiFavorites_' + (clientUser?.phone || ''),[]);
+}
+
+function normalizeClientPhone(phone){
+  phone = phone.replace(/\s+/g,'');
+
+  if(phone.startsWith('0')) return '+216' + phone.slice(1);
+  if(phone.startsWith('216')) return '+' + phone;
+
+  return phone;
+}
+
+async function setupClientRecaptcha(){
+  if(!recaptchaVerifier){
+    recaptchaVerifier = new firebase.auth.RecaptchaVerifier(
+      'recaptcha-container',
+      {size:'normal'}
+    );
+  }
+
+  await recaptchaVerifier.render();
+}
+
+async function registerClient(){
   const name = $('clientRegisterName').value.trim();
-  let phone = $('clientRegisterPhone').value.trim();
+  let phone = normalizeClientPhone($('clientRegisterPhone').value.trim());
   const pass = $('clientRegisterPass').value;
   const confirmPass = $('clientRegisterConfirm').value;
   const msg = $('clientAuthMessage');
@@ -375,50 +401,74 @@ function registerClient(){
     return;
   }
 
-  phone = phone.replace(/\s+/g,'');
-
-  if(phone.startsWith('0')) phone = '+216' + phone.slice(1);
-  else if(phone.startsWith('216')) phone = '+' + phone;
-  else if(!phone.startsWith('+216')){
-    msg.innerText = 'اكتب رقم تونسي صحيح يبدأ بـ 216';
+  if(!/^\+216\d{8}$/.test(phone)){
+    msg.innerText = 'اكتب رقم تونسي صحيح';
     return;
   }
 
-  pendingClient = {name, phone};
+  pendingClient = {name, phone, mode:'register'};
 
   try{
-    if(!recaptchaVerifier){
-      recaptchaVerifier = new firebase.auth.RecaptchaVerifier(
-        'recaptcha-container',
-        {size:'normal'}
-      );
-    }
+    await setupClientRecaptcha();
 
-    recaptchaVerifier.render().then(()=>{
-      return auth.signInWithPhoneNumber(phone, recaptchaVerifier);
-    }).then(result=>{
-      confirmationResult = result;
-      $('clientOtpBox').classList.remove('hide');
-      msg.innerText = 'بعثنالك رمز SMS. أدخله لتأكيد رقمك.';
-    }).catch(error=>{
-      msg.innerText = 'تعذر إرسال الرمز: ' + error.message;
-      if(recaptchaVerifier){
-        recaptchaVerifier.clear();
-        recaptchaVerifier = null;
-      }
-    });
+    confirmationResult = await auth.signInWithPhoneNumber(
+      phone,
+      recaptchaVerifier
+    );
+
+    $('clientOtpBox').classList.remove('hide');
+    msg.innerText = 'بعثنالك رمز SMS. أدخله لتأكيد رقمك.';
   }catch(error){
-    msg.innerText = error.message;
+    msg.innerText = 'تعذر إرسال الرمز: ' + error.message;
+
+    if(recaptchaVerifier){
+      recaptchaVerifier.clear();
+      recaptchaVerifier = null;
+    }
+  }
+}
+
+async function loginClient(){
+  const msg = $('clientAuthMessage');
+  let phone = normalizeClientPhone($('clientLoginPhone').value.trim());
+
+  if(!phone){
+    msg.innerText = 'اكتب رقم هاتفك أولاً';
+    return;
+  }
+
+  if(!/^\+216\d{8}$/.test(phone)){
+    msg.innerText = 'اكتب رقم تونسي صحيح';
+    return;
+  }
+
+  pendingClient = {mode:'login', phone};
+
+  try{
+    await setupClientRecaptcha();
+
+    confirmationResult = await auth.signInWithPhoneNumber(
+      phone,
+      recaptchaVerifier
+    );
+
+    $('clientOtpBox').classList.remove('hide');
+    msg.innerText = 'بعثنالك رمز SMS. أدخله لتسجيل الدخول.';
+  }catch(error){
+    msg.innerText = 'تعذر إرسال الرمز: ' + error.message;
+
+    if(recaptchaVerifier){
+      recaptchaVerifier.clear();
+      recaptchaVerifier = null;
+    }
   }
 }
 
 async function verifyClientOTP(){
-  
-async function verifyClientOTP(){
   const code = $('clientOtp').value.trim();
   const msg = $('clientAuthMessage');
 
-  if(!confirmationResult || code.length !== 6){
+  if(!confirmationResult || !/^\d{6}$/.test(code)){
     msg.innerText = 'أدخل رمز SMS الصحيح';
     return;
   }
@@ -427,56 +477,61 @@ async function verifyClientOTP(){
     const result = await confirmationResult.confirm(code);
     const user = result.user;
 
-    let doc = await db.collection('clients').doc(user.uid).get();
+    const doc = await db.collection('clients').doc(user.uid).get();
 
-    // دخول حساب قديم
-    if(pendingClient && pendingClient.mode === 'login'){
-      if(!doc.exists){
-        await auth.signOut();
-        msg.innerText = 'الحساب غير موجود. اعمل حساب جديد أولاً.';
-        return;
-      }
+    if(pendingClient?.mode === 'login' && !doc.exists){
+      await auth.signOut();
+      msg.innerText = 'الحساب غير موجود. اعمل حساب جديد أولاً.';
+      return;
+    }
+
+    if(doc.exists){
+      const data = doc.data();
 
       clientUser = {
         uid: user.uid,
-        name: doc.data().name,
+        name: data.name,
         phone: user.phoneNumber
       };
-
-      msg.innerText = 'تم تسجيل الدخول بنجاح!';
-    }
-
-    // إنشاء حساب جديد
-    else {
-      if(doc.exists){
-        clientUser = {
-          uid: user.uid,
-          name: doc.data().name,
-          phone: user.phoneNumber
-        };
-        msg.innerText = 'الحساب موجود، تم تسجيل الدخول!';
-      } else {
-        await db.collection('clients').doc(user.uid).set({
-          uid: user.uid,
-          name: pendingClient.name,
-          phone: user.phoneNumber,
-          createdAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
-
-        clientUser = {
-          uid: user.uid,
-          name: pendingClient.name,
-          phone: user.phoneNumber
-        };
-
-        msg.innerText = 'تم إنشاء حسابك بنجاح!';
+    }else{
+      if(!pendingClient || !pendingClient.name){
+        await auth.signOut();
+        msg.innerText = 'معلومات إنشاء الحساب ناقصة.';
+        return;
       }
+
+      await db.collection('clients').doc(user.uid).set({
+        uid: user.uid,
+        name: pendingClient.name,
+        phone: user.phoneNumber,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+
+      clientUser = {
+        uid: user.uid,
+        name: pendingClient.name,
+        phone: user.phoneNumber
+      };
     }
 
     pendingClient = null;
     confirmationResult = null;
+
     $('clientOtpBox').classList.add('hide');
     $('clientAuthBox').classList.add('hide');
+
+    updateClientView();
+    renderClient();
+    renderFavorites();
+
+    msg.innerText = 'تم تسجيل الدخول بنجاح!';
+
+  }catch(error){
+    console.error('Client OTP Error:', error);
+    msg.innerText = 'خطأ في تأكيد الرمز: ' + error.message;
+  }
+}
+
 
     updateClientView();
     renderClient();
@@ -572,12 +627,27 @@ function updateClientView(){
  }
 }
 function logoutClient(){
-
 async function logoutClient(){
   try {
     await auth.signOut();
 
     clientUser = null;
+    updateClientView();
+
+    $('clientLoginPass').value = '';
+    $('clientRegisterPass').value = '';
+    $('clientRegisterConfirm').value = '';
+    $('clientRequests').innerHTML = '';
+    $('favorites').innerHTML = '';
+    $('clientResult').innerHTML = '';
+    $('clientAuthMessage').innerText = 'تم تسجيل الخروج بنجاح.';
+
+  } catch(error) {
+    $('clientAuthMessage').innerText =
+      'تعذر تسجيل الخروج: ' + error.message;
+  }
+}
+
     updateClientView();
 
     $('clientLoginPass').value = '';
@@ -918,30 +988,25 @@ async function applyDriver(){
 }
 
 
+
 /* السائقون */
+
+/* السائقون */
+
 function addDriver(){
- let name=$('newName').value.trim(),phone=$('newPhone').value.trim(),password=$('newPassword').value;
- if(!name||!phone||!password)return alert('عمر جميع الخانات');
- let a=getDrivers();
- if(a.some(d=>d.phone===phone))return alert('رقم الهاتف موجود');
- a.push({id:Date.now(),name,phone,password,active:true,online:false});
- write('taxiDrivers',a);
- $('newName').value='';$('newPhone').value='';$('newPassword').value='';
- $('addResult').innerText='تمت إضافة السائق';
- renderAdmin();
+  alert('إضافة السائقين تتم حالياً من Firebase Authentication وFirestore');
 }
-} catch(error) {
-    console.error('Driver Login Error:', error);
-    $('driverError').innerText =
-      'Firebase Error: ' + error.code + ' - ' + error.message;
-}
+
+async function loginDriver(){
+  const phone = $('driverPhone').value.trim();
+  const pass = $('driverPass').value;
+
   if(!phone || !pass){
     $('driverError').innerText = 'اكتب رقم الهاتف وكلمة السر';
     return;
   }
 
   try {
-    // حساب تجريبي مربوط برقم الهاتف
     if(phone !== '12345678'){
       $('driverError').innerText = 'رقم الهاتف غير صحيح';
       return;
@@ -955,23 +1020,32 @@ function addDriver(){
     const uid = result.user.uid;
     const doc = await db.collection('drivers').doc(uid).get();
 
-    if(!doc.exists || doc.data().active !== true){
+    if(!doc.exists){
       await auth.signOut();
-      $('driverError').innerText = 'حساب السائق غير موجود أو متوقف';
+      $('driverError').innerText = 'وثيقة السائق غير موجودة في Firestore';
       return;
     }
 
-    driver = { id: uid, ...doc.data() };
+    const data = doc.data();
+
+    if(data.active !== true){
+      await auth.signOut();
+      $('driverError').innerText = 'حساب السائق متوقف';
+      return;
+    }
+
+    driver = {id: uid, ...data};
     online = !!driver.online;
 
     $('driverError').innerText = '';
     openPage('driverPanel');
 
   } catch(error) {
-    $('driverError').innerText = 'معلومات الدخول غالطة';
+    console.error('Driver Login Error:', error);
+    $('driverError').innerText =
+      'Firebase: ' + error.code + ' — ' + error.message;
   }
 }
-
 function renderDriver(){
  if(!driver)return;
  let a=getRides(),mine=a.filter(r=>r.driverId===driver.id),done=mine.filter(r=>r.status==='مكتملة');
