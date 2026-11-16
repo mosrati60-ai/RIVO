@@ -1421,17 +1421,36 @@ async function finishRide(id){
 
 async function renderAdmin(){
 
-  const rs = getRides();
-  const done = rs.filter(r => r.status === 'مكتملة');
+ 
+  $('totalRequests').innerText = 'جاري التحميل...';
+  $('completedRequests').innerText = 'جاري التحميل...';
 
-  $('totalRequests').innerText = rs.length;
-  $('completedRequests').innerText = done.length;
+  try {
+    const ridesSnapshot = await db.collection('rides').get();
 
-  $('totalIncome').innerText =
-    done.reduce((s,r) => s + Number(r.fare || 0), 0).toFixed(2) + ' د.ت';
+    const rs = ridesSnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
 
-  $('totalCommission').innerText =
-    done.reduce((s,r) => s + Number(r.commission || 0), 0).toFixed(2) + ' د.ت';
+    const done = rs.filter(r => r.status === 'مكتملة');
+
+    $('totalRequests').innerText = rs.length;
+    $('completedRequests').innerText = done.length;
+
+    $('totalIncome').innerText =
+      done.reduce((s,r) => s + Number(r.fare || 0), 0).toFixed(2) + ' د.ت';
+
+    $('totalCommission').innerText =
+      done.reduce((s,r) => s + Number(r.commission || 0), 0).toFixed(2) + ' د.ت';
+
+  } catch(error) {
+    console.error('Load Rides Error:', error);
+    $('totalRequests').innerText = 'خطأ';
+    $('completedRequests').innerText = 'خطأ';
+    $('totalIncome').innerText = 'خطأ';
+    $('totalCommission').innerText = 'خطأ';
+  }
 
   $('driversList').innerText = 'جاري تحميل السائقين...';
 
