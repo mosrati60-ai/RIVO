@@ -1315,6 +1315,34 @@ async function renderDriver(){
 
 /* إدارة الرحلات من طرف السائق */
 
+/* تشغيل وإيقاف اتصال السائق */
+
+async function toggleDriverOnline(){
+
+  if(!driver || !auth.currentUser){
+    return alert('لازم تسجل الدخول كـ سائق');
+  }
+
+  const newStatus = !online;
+
+  try {
+    await db.collection('drivers')
+      .doc(auth.currentUser.uid)
+      .update({
+        online: newStatus
+      });
+
+    online = newStatus;
+    driver.online = newStatus;
+
+    renderDriver();
+
+  } catch(error) {
+    console.error('Online Error:', error);
+    alert('تعذر تغيير حالة الاتصال: ' + error.message);
+  }
+}
+
 async function acceptRide(id){
 
   if(!driver || !online || !auth.currentUser)
