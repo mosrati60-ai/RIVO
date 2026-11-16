@@ -413,6 +413,8 @@ function registerClient(){
 }
 
 async function verifyClientOTP(){
+  
+async function verifyClientOTP(){
   const code = $('clientOtp').value.trim();
   const msg = $('clientAuthMessage');
 
@@ -425,21 +427,66 @@ async function verifyClientOTP(){
     const result = await confirmationResult.confirm(code);
     const user = result.user;
 
-    await db.collection('clients').doc(user.uid).set({
-      uid: user.uid,
-      name: pendingClient.name,
-      phone: user.phoneNumber,
-      createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
+    let doc = await db.collection('clients').doc(user.uid).get();
 
-    clientUser = {
-      uid: user.uid,
-      name: pendingClient.name,
-      phone: user.phoneNumber
-    };
+    // دخول حساب قديم
+    if(pendingClient && pendingClient.mode === 'login'){
+      if(!doc.exists){
+        await auth.signOut();
+        msg.innerText = 'الحساب غير موجود. اعمل حساب جديد أولاً.';
+        return;
+      }
 
+      clientUser = {
+        uid: user.uid,
+        name: doc.data().name,
+        phone: user.phoneNumber
+      };
+
+      msg.innerText = 'تم تسجيل الدخول بنجاح!';
+    }
+
+    // إنشاء حساب جديد
+    else {
+      if(doc.exists){
+        clientUser = {
+          uid: user.uid,
+          name: doc.data().name,
+          phone: user.phoneNumber
+        };
+        msg.innerText = 'الحساب موجود، تم تسجيل الدخول!';
+      } else {
+        await db.collection('clients').doc(user.uid).set({
+          uid: user.uid,
+          name: pendingClient.name,
+          phone: user.phoneNumber,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        clientUser = {
+          uid: user.uid,
+          name: pendingClient.name,
+          phone: user.phoneNumber
+        };
+
+        msg.innerText = 'تم إنشاء حسابك بنجاح!';
+      }
+    }
+
+    pendingClient = null;
+    confirmationResult = null;
     $('clientOtpBox').classList.add('hide');
     $('clientAuthBox').classList.add('hide');
+
+    updateClientView();
+    renderClient();
+    renderFavorites();
+
+  }catch(error){
+    msg.innerText = 'فشل التحقق: ' + error.message;
+  }
+}
+
     updateClientView();
     renderClient();
     renderFavorites();
@@ -450,29 +497,51 @@ async function verifyClientOTP(){
   }
 }
 function loginClient(){
+
 async function loginClient(){
   const msg = $('clientAuthMessage');
+  let phone = $('clientLoginPhone').value.trim();
+
+  if(!phone){
+    msg.innerText = 'اكتب رقم هاتفك أولاً';
+    return;
+  }
+
+  phone = phone.replace(/\s+/g,'');
+  if(phone.startsWith('0')) phone = '+216' + phone.slice(1);
+  else if(phone.startsWith('216')) phone = '+' + phone;
+  else if(!phone.startsWith('+216')){
+    msg.innerText = 'اكتب رقم تونسي صحيح';
+    return;
+  }
 
   try{
-    const user = auth.currentUser;
-
-    if(!user){
-      msg.innerText = 'سجّل حسابك أو أكّد رقم هاتفك برمز SMS أولاً.';
-      return;
+    if(!recaptchaVerifier){
+      recaptchaVerifier = new firebase.auth.RecaptchaVerifier(
+        'recaptcha-container',
+        {size:'normal'}
+      );
     }
 
-    const doc = await db.collection('clients').doc(user.uid).get();
+    await recaptchaVerifier.render();
 
-    if(!doc.exists){
-      msg.innerText = 'الحساب غير موجود في قاعدة البيانات.';
-      return;
+    confirmationResult =
+      await auth.signInWithPhoneNumber(phone, recaptchaVerifier);
+
+    pendingClient = {mode:'login'};
+
+    $('clientOtpBox').classList.remove('hide');
+    msg.innerText = 'بعثنالك رمز SMS. أدخله لتسجيل الدخول.';
+  }catch(error){
+    msg.innerText = 'تعذر إرسال الرمز: ' + error.message;
+
+    if(recaptchaVerifier){
+      recaptchaVerifier.clear();
+      recaptchaVerifier = null;
     }
+  }
+}
 
-    clientUser = {
-      uid: user.uid,
-      name: doc.data().name,
-      phone: user.phoneNumber
-    };
 
     updateClientView();
     renderClient();
@@ -554,23 +623,31 @@ function registerAdmin(){
  $('adminError').innerText='تم إنشاء الحساب، سجّل الدخول.';
 }
 function loginAdmin(){
- let a=read('taxiAdmin',null);
- if(a&&$('adminLoginPhone').value.trim()===a.phone&&$('adminPass').value===a.password)openPage('adminPanel');
- else $('adminError').innerText='معلومات الدخول غير صحيحة';
+
+async function loginAdmin(){
+  const email = $('adminLoginPhone').value.trim();
+  const password = $('adminPass').value;
+
+  try {
+    const result = await auth.signInWithEmailAndPassword(
+      email,
+      password
+    );
+
+    if(result.user.uid !== 'n4eiE6M94aYkBCxDBTgcjerNAJU2') {
+      await auth.signOut();
+      $('adminError').innerText = 'هذا الحساب موش حساب الأدمن';
+      return;
+    }
+
+    openPage('adminPanel');
+    renderAdmin();
+
+  } catch(error) {
+    $('adminError').innerText = 'الدخول فشل: تأكد من البريد وكلمة السر';
+  }
 }
-function loadSettings(){
- let s=getSettings();
- $('pricePerKm').value=s.pricePerKm;
- $('minPrice').value=s.minPrice;
- $('commission').value=s.commission;
-}
-function saveSettings(){
- let s={pricePerKm:Number($('pricePerKm').value),minPrice:Number($('minPrice').value),commission:Number($('commission').value)};
- if(!Object.values(s).every(Number.isFinite)||s.pricePerKm<0||s.minPrice<0||s.commission<0||s.commission>100)return alert('ثبت الأسعار والعمولة');
- write('taxiSettings',s);
- $('settingsResult').innerText='تم حفظ الإعدادات';
- renderAdmin();
-}
+
 
 /* الخريطة */
 function initMap(){
@@ -637,29 +714,84 @@ async function calculateRoute(){
 
 /* طلب الرحلة */
 function orderRide(){
- if(!clientUser)return alert('لازم تسجل الدخول قبل طلب الرحلة');
- let name=clientUser.name,phone=clientUser.phone;
- $('clientName').value=name;
- $('clientPhone').value=phone;
- if(!from||!to||!route||!Number.isFinite(route.fare)||!Number.isFinite(route.distance))return alert('اختار الانطلاق والوجهة واستنى حساب السعر');
- let scheduled=null;
- if($('bookingType').value==='later'){
-  scheduled=$('bookingTime').value;
-  if(!scheduled||new Date(scheduled)<=new Date())return alert('اختار موعد في المستقبل');
- }
- let pin=String(Math.floor(1000+Math.random()*9000));
- let a=getRides();
- a.push({
-  id:Date.now(),name,phone,from:from.join(','),to:to.join(','),
-  fromLat:from[0],fromLng:from[1],toLat:to[0],toLng:to[1],
-  distance:route.distance,minutes:route.minutes,fare:route.fare,
-  commission:route.commission,status:'جديد',driverId:null,
-  driverName:'',driverPhone:'',rating:0,pin,
-  payment:$('payment').value,notes:$('clientNotes').value,
-  scheduled,created:new Date().toISOString()
- });
- write('taxiRequests',a);
- $('clientResult').innerHTML=`<div class="info">تم تسجيل الطلب محلياً. رمز تأكيد الرحلة متاعك: <b>${pin}</b>. ما تعطيه للسائق كان وقت بداية الرحلة.</div>`;
+
+async function orderRide(){
+  if(!clientUser || !auth.currentUser){
+    return alert('لازم تسجل الدخول أولاً');
+  }
+
+  let name = clientUser.name;
+  let phone = clientUser.phone;
+
+  $('clientName').value = name;
+  $('clientPhone').value = phone;
+
+  if(!from || !to || !route ||
+     !Number.isFinite(route.fare) ||
+     !Number.isFinite(route.distance)){
+    return alert('اختار الانطلاق والوجهة واستنى حساب السعر');
+  }
+
+  let scheduled = null;
+
+  if($('bookingType').value === 'later'){
+    scheduled = $('bookingTime').value;
+
+    if(!scheduled || new Date(scheduled) <= new Date()){
+      return alert('اختار موعد في المستقبل');
+    }
+  }
+
+  const pin = String(Math.floor(1000 + Math.random() * 9000));
+
+  const ride = {
+    name,
+    phone,
+    clientId: auth.currentUser.uid,
+    from: from.join(','),
+    to: to.join(','),
+    fromLat: from[0],
+    fromLng: from[1],
+    toLat: to[0],
+    toLng: to[1],
+    distance: route.distance,
+    minutes: route.minutes,
+    fare: route.fare,
+    commission: route.commission,
+    status: 'جديد',
+    driverId: null,
+    driverName: '',
+    driverPhone: '',
+    rating: 0,
+    pin,
+    payment: $('payment').value,
+    notes: $('clientNotes').value,
+    scheduled,
+    created: new Date().toISOString()
+  };
+
+  try {
+    const doc = await db.collection('rides').add({
+      ...ride,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+
+    ride.id = doc.id;
+
+    let rides = getRides();
+    rides.push(ride);
+    write('taxiRequests', rides);
+
+    $('clientResult').innerHTML =
+      `<div class="info">تم إرسال طلبك وحفظه في السحابة. رقم الطلب: <b>${esc(ride.id)}</b></div>`;
+
+    renderClient();
+
+  } catch(error) {
+    alert('تعذر حفظ الطلب في Firebase: ' + error.message);
+  }
+}
+info">تم تسجيل الطلب محلياً. رمز تأكيد الرحلة متاعك: <b>${pin}</b>. ما تعطيه للسائق كان وقت بداية الرحلة.</div>`;
  renderClient();
 }
 function renderClient(){
