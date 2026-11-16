@@ -1208,40 +1208,119 @@ async function loginDriver(){
       'Firebase: ' + error.code + ' — ' + error.message;
   }
 }
-function renderDriver(){
- if(!driver)return;
- let a=getRides(),mine=a.filter(r=>r.driverId===driver.id),done=mine.filter(r=>r.status==='مكتملة');
- $('driverWelcome').innerText='مرحبا '+driver.name;
- $('driverOnline').innerText=online?'🟢 متصل':'⚪ غير متصل';
- $('driverCount').innerText=done.length;
- $('driverIncome').innerText=done.reduce((s,r)=>s+r.fare-r.commission,0).toFixed(2)+' د.ت';
- $('driverRequests').innerHTML=online?a.filter(r=>r.status==='جديد').map(r=>`
- <div class="item"><b>طلب جديد</b><br>
- الحريف: ${esc(r.name)}<br>الهاتف: ${esc(r.phone)}<br>
- من: ${esc(r.from)}<br>إلى: ${esc(r.to)}<br>
- السعر: ${r.fare} د.ت<br>
- <button class="blue" onclick="openMaps(${r.fromLat},${r.fromLng},${r.toLat},${r.toLng})">فتح الخريطة</button>
- <button class="green" onclick="acceptRide(${r.id})">قبول الرحلة</button></div>
- `).join('')||'ما فماش طلبات جديدة':'فعّل الاتصال باش تشوف الطلبات';
- $('driverMyRequests').innerHTML=mine.filter(r=>r.status!=='مكتملة'&&r.status!=='ملغاة').map(r=>`
- <div class="item"><b>رحلة ${r.id}</b><br>
- الحريف: ${esc(r.name)}<br>الوجهة: ${esc(r.to)}<br>الحالة: ${esc(r.status)}<br>
- ${r.status==='مقبولة'?`<button class="primary" onclick="markArrived(${r.id})">وصلت للحريف</button>`:''}
- ${r.status==='السائق وصل'?`<label>أدخل PIN اللي يعطيهولك الحريف</label><input id="pin-${r.id}" inputmode="numeric" placeholder="رمز الرحلة"><button class="primary" onclick="startRide(${r.id})">تأكيد بداية الرحلة</button>`:''}
- ${r.status==='جارية'?`<button class="green" onclick="finishRide(${r.id})">إتمام الرحلة</button>`:''}
- </div>`).join('')||'ما عندك حتى رحلة جارية';
+
+/* صفحة السائق من Firebase */
+
+async function renderDriver(){
+
+  if(!driver || !auth.currentUser) return;
+
+  $('driverWelcome').innerText = 'مرحبا ' + driver.name;
+  $('driverOnline').innerText = online ? '🟢 متصل' : '⚪ غير متصل';
+
+  $('driverRequests').innerHTML = 'جاري تحميل الطلبات...';
+  $('driverMyRequests').innerHTML = 'جاري تحميل رحلاتك...';
+
+  try {
+
+    const uid = auth.currentUser.uid;
+
+    const [newSnapshot, mineSnapshot] = await Promise.all([
+
+      db.collection('rides')
+        .where('status', '==', 'جديد')
+        .get(),
+
+      db.collection('rides')
+        .where('driverId', '==', uid)
+        .get()
+
+    ]);
+
+    const available = [];
+    const mine = [];
+
+    newSnapshot.forEach(doc => {
+      available.push({id: doc.id, ...doc.data()});
+    });
+
+    mineSnapshot.forEach(doc => {
+      mine.push({id: doc.id, ...doc.data()});
+    });
+
+    const done = mine.filter(r => r.status === 'مكتملة');
+
+    $('driverCount').innerText = done.length;
+
+    $('driverIncome').innerText =
+      done.reduce((sum,r) =>
+        sum + Number(r.fare || 0) - Number(r.commission || 0), 0
+      ).toFixed(2) + ' د.ت';
+
+    $('driverRequests').innerHTML = online
+      ? available.map(r => `
+        <div class="item">
+          <b>طلب جديد</b><br>
+          الحريف: ${esc(r.name || '')}<br>
+          الهاتف: ${esc(r.phone || '')}<br>
+          من: ${esc(r.from || '')}<br>
+          إلى: ${esc(r.to || '')}<br>
+          السعر: ${Number(r.fare || 0)} د.ت<br>
+
+          <button class="blue"
+            onclick="openMaps(${Number(r.fromLat)},${Number(r.fromLng)},${Number(r.toLat)},${Number(r.toLng)})">
+            فتح الخريطة
+          </button>
+
+          <button class="green"
+            onclick="acceptRide('${r.id}')">
+            قبول الرحلة
+          </button>
+        </div>
+      `).join('') || 'ما فماش طلبات جديدة'
+      : 'فعّل الاتصال باش تشوف الطلبات';
+
+    $('driverMyRequests').innerHTML = mine
+      .filter(r => !['مكتملة','ملغاة'].includes(r.status))
+      .map(r => `
+        <div class="item">
+          <b>رحلة ${esc(r.id)}</b><br>
+          الحريف: ${esc(r.name || '')}<br>
+          الوجهة: ${esc(r.to || '')}<br>
+          الحالة: ${esc(r.status || '')}<br>
+
+          ${r.status === 'مقبولة'
+            ? `<button class="primary" onclick="markArrived('${r.id}')">وصلت للحريف</button>`
+            : ''}
+
+          ${r.status === 'السائق وصل'
+            ? `<label>أدخل رمز الرحلة PIN</label>
+               <input id="pin-${r.id}" inputmode="numeric" placeholder="رمز الرحلة">
+               <button class="primary" onclick="startRide('${r.id}')">تأكيد بداية الرحلة</button>`
+            : ''}
+
+          ${r.status === 'جارية'
+            ? `<button class="green" onclick="finishRide('${r.id}')">إتمام الرحلة</button>`
+            : ''}
+        </div>
+      `).join('') || 'ما عندك حتى رحلة جارية';
+
+  } catch(error) {
+    console.error('Render Driver Error:', error);
+    $('driverRequests').innerText = 'خطأ في تحميل الطلبات: ' + error.message;
+    $('driverMyRequests').innerText = 'تعذر تحميل رحلاتك';
+  }
 }
-function acceptRide(id){
+
 
 /* إدارة الرحلات من طرف السائق */
 
 async function acceptRide(id){
 
-  if(!driver || !online || !auth.currentUser){
+  if(!driver || !online || !auth.currentUser)
     return alert('لازم تكون متصل');
-  }
 
-  try{
+  try {
     const ref = db.collection('rides').doc(id);
     const doc = await ref.get();
 
@@ -1249,9 +1328,8 @@ async function acceptRide(id){
 
     const r = doc.data();
 
-    if(r.status !== 'جديد' || r.driverId !== null){
+    if(r.status !== 'جديد' || r.driverId !== null)
       return alert('الطلب ما عادش متاح');
-    }
 
     await ref.update({
       status: 'مقبولة',
@@ -1263,7 +1341,7 @@ async function acceptRide(id){
     alert('تم قبول الرحلة بنجاح');
     renderDriver();
 
-  }catch(error){
+  } catch(error) {
     console.error(error);
     alert('تعذر قبول الرحلة: ' + error.message);
   }
@@ -1274,7 +1352,7 @@ async function markArrived(id){
 
   if(!driver || !auth.currentUser) return;
 
-  try{
+  try {
     const ref = db.collection('rides').doc(id);
     const doc = await ref.get();
 
@@ -1282,21 +1360,18 @@ async function markArrived(id){
 
     const r = doc.data();
 
-    if(r.driverId !== auth.currentUser.uid ||
-       r.status !== 'مقبولة'){
+    if(r.driverId !== auth.currentUser.uid || r.status !== 'مقبولة')
       return alert('ما تنجمش تبدّل حالة الرحلة');
-    }
 
-    await ref.update({
-      status: 'السائق وصل'
-    });
-
+    await ref.update({status: 'السائق وصل'});
     renderDriver();
 
-  }catch(error){
+  } catch(error) {
     alert('تعذر تحديث الرحلة: ' + error.message);
   }
 }
+
+
 async function startRide(id){
 
   if(!driver || !auth.currentUser) return;
@@ -1305,7 +1380,7 @@ async function startRide(id){
 
   if(!pin) return alert('اكتب رمز الرحلة');
 
-  try{
+  try {
     const ref = db.collection('rides').doc(id);
     const doc = await ref.get();
 
@@ -1313,27 +1388,50 @@ async function startRide(id){
 
     const r = doc.data();
 
-    if(r.driverId !== auth.currentUser.uid ||
-       r.status !== 'السائق وصل'){
+    if(r.driverId !== auth.currentUser.uid || r.status !== 'السائق وصل')
       return alert('الرحلة غير جاهزة للانطلاق');
-    }
 
-    if(String(pin) !== String(r.pin)){
+    if(String(pin) !== String(r.pin))
       return alert('رمز الرحلة غير صحيح');
-    }
 
-    await ref.update({
-      status: 'جارية'
-    });
+    await ref.update({status: 'جارية'});
 
     alert('انطلقت الرحلة');
     renderDriver();
 
-  }catch(error){
+  } catch(error) {
     alert('تعذر بدء الرحلة: ' + error.message);
   }
 }
 
+
+async function finishRide(id){
+
+  if(!driver || !auth.currentUser) return;
+
+  try {
+    const ref = db.collection('rides').doc(id);
+    const doc = await ref.get();
+
+    if(!doc.exists) return;
+
+    const r = doc.data();
+
+    if(r.driverId !== auth.currentUser.uid || r.status !== 'جارية')
+      return alert('ما تنجمش تكمل الرحلة');
+
+    await ref.update({
+      status: 'مكتملة',
+      completedAt: new Date().toISOString()
+    });
+
+    alert('تم إكمال الرحلة بنجاح');
+    renderDriver();
+
+  } catch(error) {
+    alert('تعذر إكمال الرحلة: ' + error.message);
+  }
+}
 
 async function finishRide(id){
 
@@ -1365,12 +1463,7 @@ async function finishRide(id){
   }
 }
 
-function finishRide(id){
- let a=getRides(),r=a.find(x=>x.id===id);
- if(!r||r.driverId!==driver?.id||r.status!=='جارية')return;
- r.status='مكتملة';r.completedAt=new Date().toISOString();
- write('taxiRequests',a);renderDriver();
-}
+
 
 /* لوحة المسؤول */
 function renderAdmin(){
