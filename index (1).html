@@ -310,7 +310,7 @@ const getSettings=()=>read('taxiSettings',{pricePerKm:.8,minPrice:2,commission:1
 
 let driver=null,online=false,map=null,from=null,to=null,m1=null,m2=null,line=null,route=null;
 let clientUser=null;
-
+let stopDriverNewRides = null;
 function openPage(id){
  document.querySelectorAll('.page,.hero').forEach(x=>x.style.display='none');
  $(id).style.display='block';
@@ -1193,6 +1193,18 @@ async function renderDriver(){
 
   $('driverRequests').innerHTML = 'جاري تحميل الطلبات...';
   $('driverMyRequests').innerHTML = 'جاري تحميل رحلاتك...';
+   // استقبال الطلبات الجديدة مباشرة من Firebase
+  if (!stopDriverNewRides) {
+    stopDriverNewRides = db.collection('rides')
+      .where('status', '==', 'جديد')
+      .onSnapshot(() => {
+        if (driver && auth.currentUser) {
+          renderDriver();
+        }
+      }, error => {
+        console.error('Live Requests Error:', error);
+      });
+  }
 
   try {
 
