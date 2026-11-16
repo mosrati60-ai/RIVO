@@ -144,7 +144,7 @@ body.dark input,body.dark select,body.dark textarea{background:#203650;color:whi
   <div class="card">
    <h2>🇹🇳 فضاء الحريف</h2>
    <p>اختار مكان الانطلاق والوجهة.</p>
-   <button class="blue" onclick="locateMe()">📍 حدّد موقعي الحالي GPS</button
+  <button class="blue" onclick="locateMe()">📍 حدّد موقعي الحالي GPS</button>
  
 <div class="destination-search">
   <h3>🏁 وين تحب تمشي؟</h3>
@@ -1234,53 +1234,6 @@ function deleteFavorite(id){
  write(key,read(key,[]).filter(f=>f.id!==id));
  renderFavorites();
 }
-
-/* الشكاوى وطلبات السائقين */
-function sendComplaint(){
- if(!clientUser)return alert('سجّل الدخول أولاً');
- let phone=clientUser.phone;
- let message=$('complaintText').value.trim();
- if(!message)return alert('اكتب الشكوى');
- let a=read('taxiComplaints',[]);
- a.push({id:Date.now(),phone,message,status:'جديدة',date:new Date().toLocaleString('ar-TN')});
- write('taxiComplaints',a);
- $('complaintResult').innerText='تم حفظ الشكوى في هذا المتصفح.';
- $('complaintText').value='';
-}
-
-<hr>
-<h3>طلب الانضمام كسائق</h3>
-
-<input id="applyName" placeholder="اسمك">
-
-<input
-  id="applyEmail"
-  type="email"
-  placeholder="البريد الإلكتروني"
->
-
-<input
-  id="applyPassword"
-  type="password"
-  placeholder="كلمة السر (6 أحرف على الأقل)"
->
-
-<input id="applyPhone" placeholder="رقم الهاتف">
-
-<textarea
-  id="applyInfo"
-  placeholder="نوع الدراجة ومعلومات إضافية"
-></textarea>
-
-<button class="primary" onclick="applyDriver()">
-  إنشاء الحساب وإرسال طلب الانضمام
-</button>
-
-<p id="applyResult"></p>
-</div>
-</section>
-
-
 /* السائقون */
 
 /* السائقون */
