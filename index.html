@@ -629,15 +629,20 @@ function updateClientView(){
   }
 }
 function forgotClientPassword(){
- let phone=$('clientLoginPhone').value.trim();
- if(!phone){
-  $('clientAuthMessage').innerText='اكتب رقم هاتفك أولاً';
-  return;
- }
- let message='السلام عليكم، نحب مساعدة في استرجاع حساب Taxi Moto Tunisia. رقم الهاتف: '+phone;
- window.open('https://wa.me/21623348531?text='+encodeURIComponent(message),'_blank');
-}
+  const email = $('clientLoginEmail').value.trim();
 
+  if(!email){
+    $('clientAuthMessage').innerText = 'اكتب البريد الإلكتروني أولاً';
+    return;
+  }
+
+  const message = 'نحب مساعدة في استرجاع حساب Taxi Moto Tunisia. البريد الإلكتروني: ' + email;
+
+  window.open(
+    'https://wa.me/21623348531?text=' + encodeURIComponent(message),
+    '_blank'
+  );
+}
 
 /* المسؤول */
 function checkAdmin(){
