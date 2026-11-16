@@ -132,6 +132,14 @@ body.dark input,body.dark select,body.dark textarea{background:#203650;color:whi
 </div>
 
 
+<div class="card hide" id="clientAccountBox">
+  <h3>مرحبا <span id="clientAccountName"></span> 👋</h3>
+  <p id="clientAccountPhone"></p>
+  <button class="red" onclick="logoutClient()">
+    تسجيل الخروج
+  </button>
+</div>
+
  <div id="clientFeatures" class="hide">
   <div class="card">
    <h2>🇹🇳 فضاء الحريف</h2>
@@ -338,6 +346,20 @@ function openPage(id){
  $(id).style.display='block';
  if(id==='client'){
   updateClientView();
+  function updateClientView(){
+  const authBox = $('clientAuthBox');
+
+  console.log('CLIENT ELEMENTS:', {
+    authBox: $('clientAuthBox'),
+    accountBox: $('clientAccountBox'),
+    features: $('clientFeatures')
+  });
+
+  const accountBox = $('clientAccountBox');
+  const features = $('clientFeatures');
+
+  // بقية الدالة...
+}
   setTimeout(()=>{
    initMap();
    if(map)map.invalidateSize();
