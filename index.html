@@ -144,7 +144,19 @@ body.dark input,body.dark select,body.dark textarea{background:#203650;color:whi
   <div class="card">
    <h2>🇹🇳 فضاء الحريف</h2>
    <p>اختار مكان الانطلاق والوجهة.</p>
-  <button class="blue" onclick="locateMe()">📍 حدّد موقعي الحالي GPS</button>
+  <button class="blue" onclick="locateMe()">📍 حدّد موقعي الحالي GPS</<div class="row">
+  <button class="blue" onclick="chooseStartOnMap()">
+    📍 اختار الانطلاق من الخريطة
+  </button>
+
+  <button class="blue" onclick="chooseDestinationOnMap()">
+    🏁 اختار الوجهة من الخريطة
+  </button>
+</div>
+
+<button class="green" onclick="locateMe()">
+  📍 استعمل موقعي الحالي GPS
+</button>
  
 <div class="destination-search">
   <h3>🏁 وين تحب تمشي؟</h3>
@@ -911,18 +923,25 @@ function initMap(){
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
     attribution:'© OpenStreetMap'
   }).addTo(map);
+map.on('click',e=>{
+  const p = [e.latlng.lat,e.latlng.lng];
 
-  map.on('click',e=>{
-    const p = [e.latlng.lat,e.latlng.lng];
+  if(window.selectingStart){
+    setStartPoint(p);
+    window.selectingStart = false;
+    $('mapHelp').innerText = 'تم تحديد الانطلاق. اختار الوجهة.';
+    return;
+  }
 
-    if(window.selectingDestination && from){
-      setDestinationPoint(p);
-      window.selectingDestination = false;
-      return;
-    }
+  if(window.selectingDestination){
+    setDestinationPoint(p);
+    window.selectingDestination = false;
+    $('mapHelp').innerText = 'تم تحديد الوجهة.';
+    return;
+  }
 
-    pickPoint(p);
-  });
+  pickPoint(p);
+});
 }
 
 function clearRoute(){
@@ -931,11 +950,30 @@ function clearRoute(){
     line = null;
   }
 }
+async function getPlaceName(p){
+  try{
+    const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${p[0]}&lon=${p[1]}&accept-language=ar,fr`;
+    const response = await fetch(url);
+    const data = await response.json();
+    const a = data.address || {};
+
+    return [
+      a.road || a.pedestrian || '',
+      a.neighbourhood || a.suburb || '',
+      a.city || a.town || a.village || ''
+    ].filter(Boolean).join('، ') || data.display_name || 'الموقع المحدد';
+
+  }catch(error){
+    return 'الموقع المحدد';
+  }
+}
 
 function setStartPoint(p){
   from = p;
   to = null;
   route = null;
+
+  window.selectingStart = false;
   window.selectingDestination = false;
 
   if(m1) map.removeLayer(m1);
@@ -946,10 +984,14 @@ function setStartPoint(p){
   m1 = L.marker(p).addTo(map);
   m2 = null;
 
-  $('fromText').innerText = p.map(n=>n.toFixed(5)).join(', ');
+  $('fromText').innerText = 'جاري تحديد اسم المكان...';
   $('toText').innerText = 'لم يتم الاختيار';
   $('routeInfo').innerHTML = '';
   $('mapHelp').innerText = 'تم تحديد الانطلاق. اختار الوجهة.';
+
+  getPlaceName(p).then(name=>{
+    if(from === p) $('fromText').innerText = name;
+  });
 }
 
 function setDestinationPoint(p,name=''){
@@ -963,11 +1005,16 @@ function setDestinationPoint(p,name=''){
   if(m2) map.removeLayer(m2);
   m2 = L.marker(p).addTo(map);
 
-  $('toText').innerText = name || p.map(n=>n.toFixed(5)).join(', ');
+  $('toText').innerText = name || 'جاري تحديد اسم المكان...';
+
+  if(!name){
+    getPlaceName(p).then(placeName=>{
+      if(to === p) $('toText').innerText = placeName;
+    });
+  }
 
   calculateRoute();
 }
-
 function pickPoint(p){
   if(!from){
     setStartPoint(p);
