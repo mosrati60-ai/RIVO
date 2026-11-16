@@ -1610,6 +1610,26 @@ async function deleteDriver(id) {
   }
 }
 
+async function toggleDriver(id, currentStatus) {
+  if (!auth.currentUser) {
+    return alert('لازم المسؤول يعمل تسجيل دخول');
+  }
+
+  try {
+    await db.collection('drivers').doc(id).update({
+      active: !currentStatus
+    });
+
+    alert(currentStatus ? 'تم إيقاف السائق' : 'تم تفعيل السائق');
+
+    await renderAdmin();
+
+  } catch (error) {
+    console.error('Toggle Driver Error:', error);
+    alert('تعذر تغيير حالة السائق: ' + error.message);
+  }
+}
+
 async function approveApplication(id){
 
   if(!auth.currentUser){
