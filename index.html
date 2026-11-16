@@ -211,7 +211,12 @@ body.dark input,body.dark select,body.dark textarea{background:#203650;color:whi
  <button class="back" onclick="goHome()">رجوع للرئيسية</button>
  <div class="card">
   <h2>🏍️ فضاء السائق</h2>
-  <input id="driverPhone" placeholder="رقم الهاتف">
+ <input
+  id="driverEmail"
+  type="email"
+  placeholder="البريد الإلكتروني"
+  autocomplete="username"
+>
   <input id="driverPass" type="password" placeholder="كلمة السر">
   <button class="primary" onclick="loginDriver()">دخول</button>
  <p id="driverError"></p>
@@ -1284,32 +1289,32 @@ function addDriver(){
   alert('إضافة السائقين تتم حالياً من Firebase Authentication وFirestore');
 }
 
+
 async function loginDriver(){
-  const phone = $('driverPhone').value.trim();
+
+  const email = $('driverEmail').value.trim().toLowerCase();
   const pass = $('driverPass').value;
 
-  if(!phone || !pass){
-    $('driverError').innerText = 'اكتب رقم الهاتف وكلمة السر';
+  if(!email || !pass){
+    $('driverError').innerText =
+      'اكتب البريد الإلكتروني وكلمة السر';
     return;
   }
 
-  try {
-    if(phone !== '12345678'){
-      $('driverError').innerText = 'رقم الهاتف غير صحيح';
-      return;
-    }
-
+  try{
     const result = await auth.signInWithEmailAndPassword(
-      'driver1@taximoto.tn',
+      email,
       pass
     );
 
     const uid = result.user.uid;
+
     const doc = await db.collection('drivers').doc(uid).get();
 
     if(!doc.exists){
       await auth.signOut();
-      $('driverError').innerText = 'وثيقة السائق غير موجودة في Firestore';
+      $('driverError').innerText =
+        'حسابك لم تتم الموافقة عليه بعد من المسؤول';
       return;
     }
 
@@ -1317,22 +1322,33 @@ async function loginDriver(){
 
     if(data.active !== true){
       await auth.signOut();
-      $('driverError').innerText = 'حساب السائق متوقف';
+      $('driverError').innerText =
+        'حساب السائق متوقف';
       return;
     }
 
-    driver = {id: uid, ...data};
+    if(data.email && data.email.toLowerCase() !== email){
+      await auth.signOut();
+      $('driverError').innerText =
+        'البريد الإلكتروني غير مطابق للحساب';
+      return;
+    }
+
+    driver = {id:uid,...data};
     online = !!driver.online;
 
     $('driverError').innerText = '';
+
     openPage('driverPanel');
 
-  } catch(error) {
-    console.error('Driver Login Error:', error);
+  }catch(error){
+    console.error('Driver Login Error:',error);
+
     $('driverError').innerText =
-      'Firebase: ' + error.code + ' — ' + error.message;
+      'فشل الدخول: ' + error.message;
   }
 }
+
 
 /* صفحة السائق من Firebase */
 
