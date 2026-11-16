@@ -698,6 +698,11 @@ async function loginAdmin(){
   const email = $('adminLoginPhone').value.trim();
   const password = $('adminPass').value;
 
+  if(!email || !password){
+    $('adminError').innerText = 'اكتب البريد الإلكتروني وكلمة السر';
+    return;
+  }
+
   try {
     const result = await auth.signInWithEmailAndPassword(
       email,
@@ -710,14 +715,16 @@ async function loginAdmin(){
       return;
     }
 
+    $('adminError').innerText = '';
     openPage('adminPanel');
     renderAdmin();
 
   } catch(error) {
-    $('adminError').innerText = 'الدخول فشل: تأكد من البريد وكلمة السر';
+    console.error('Admin Login Error:', error);
+    $('adminError').innerText =
+      'الدخول فشل: ' + error.message;
   }
 }
-
 
 /* الخريطة */
 function initMap(){
