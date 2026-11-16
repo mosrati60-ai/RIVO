@@ -1675,7 +1675,7 @@ auth.onAuthStateChanged(async user => {
       clientUser = {
         uid: user.uid,
         name: data.name,
-        phone: user.phoneNumber
+        phone: data.phone
       };
 
       updateClientView();
