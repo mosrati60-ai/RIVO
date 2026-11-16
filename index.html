@@ -80,37 +80,57 @@ body.dark input,body.dark select,body.dark textarea{background:#203650;color:whi
 
 <section class="page" id="client">
  <button class="back" onclick="goHome()">رجوع للرئيسية</button>
- <div class="card" id="clientAuthBox">
+
+<div class="card" id="clientAuthBox">
   <h2>👤 حساب الحريف</h2>
+
   <h3 class="auth-title">إنشاء حساب جديد</h3>
+
   <input id="clientRegisterName" placeholder="الاسم الكامل">
-  <input id="clientRegisterPhone" placeholder="رقم الهاتف" type="tel">
-  <input id="clientRegisterPass" placeholder="كلمة السر" type="password">
-  <input id="clientRegisterConfirm" placeholder="تأكيد كلمة السر" type="password">
-  <button class="primary" onclick="registerClient()">إنشاء حساب</button>
-  <hr>
-  <h3 class="auth-title">تسجيل الدخول</h3>
-  <input id="clientLoginPhone" placeholder="رقم الهاتف" type="tel">
-  <input id="clientLoginPass" placeholder="كلمة السر" type="password">
-  <button class="primary" onclick="loginClient()">دخول</button>
-  <button class="whatsapp" onclick="forgotClientPassword()">نسيت كلمة السر؟ WhatsApp</button>
-  <p id="clientAuthMessage"></p>
-  <div id="recaptcha-container"></div>
 
-<div id="clientOtpBox" class="hide">
-  <input id="clientOtp" type="text" inputmode="numeric"
-         placeholder="أدخل رمز SMS">
-  <button class="primary" onclick="verifyClientOTP()">
-    تأكيد الرمز وإنشاء الحساب
+  <input id="clientRegisterPhone"
+         placeholder="رقم الهاتف"
+         type="tel">
+
+  <input id="clientRegisterEmail"
+         placeholder="البريد الإلكتروني"
+         type="email">
+
+  <input id="clientRegisterPass"
+         placeholder="كلمة السر"
+         type="password">
+
+  <input id="clientRegisterConfirm"
+         placeholder="تأكيد كلمة السر"
+         type="password">
+
+  <button class="primary" onclick="registerClient()">
+    إنشاء حساب
   </button>
-</div>
- </div>
 
- <div class="card hide" id="clientAccountBox">
-  <h3>مرحبا <span id="clientAccountName"></span> 👋</h3>
-  <p id="clientAccountPhone"></p>
-  <button class="red" onclick="logoutClient()">تسجيل الخروج</button>
- </div>
+  <hr>
+
+  <h3 class="auth-title">تسجيل الدخول</h3>
+
+  <input id="clientLoginEmail"
+         placeholder="البريد الإلكتروني"
+         type="email">
+
+  <input id="clientLoginPass"
+         placeholder="كلمة السر"
+         type="password">
+
+  <button class="primary" onclick="loginClient()">
+    دخول
+  </button>
+
+  <button class="whatsapp" onclick="forgotClientPassword()">
+    نسيت كلمة السر؟
+  </button>
+
+  <p id="clientAuthMessage"></p>
+</div>
+
 
  <div id="clientFeatures" class="hide">
   <div class="card">
@@ -400,15 +420,24 @@ async function setupClientRecaptcha(){
   await recaptchaVerifier.render();
 }
 
+
 async function registerClient(){
   const name = $('clientRegisterName').value.trim();
-  let phone = normalizeClientPhone($('clientRegisterPhone').value.trim());
+  const phone = normalizeClientPhone(
+    $('clientRegisterPhone').value.trim()
+  );
+  const email = $('clientRegisterEmail').value.trim().toLowerCase();
   const pass = $('clientRegisterPass').value;
   const confirmPass = $('clientRegisterConfirm').value;
   const msg = $('clientAuthMessage');
 
-  if(!name || !phone || !pass || !confirmPass){
+  if(!name || !phone || !email || !pass || !confirmPass){
     msg.innerText = 'عمر جميع الخانات';
+    return;
+  }
+
+  if(!/^\+216\d{8}$/.test(phone)){
+    msg.innerText = 'اكتب رقم تونسي صحيح';
     return;
   }
 
@@ -422,131 +451,79 @@ async function registerClient(){
     return;
   }
 
-  if(!/^\+216\d{8}$/.test(phone)){
-    msg.innerText = 'اكتب رقم تونسي صحيح';
-    return;
-  }
-
-  pendingClient = {name, phone, mode:'register'};
-
   try{
-    await setupClientRecaptcha();
-
-    confirmationResult = await auth.signInWithPhoneNumber(
-      phone,
-      recaptchaVerifier
+    const result = await auth.createUserWithEmailAndPassword(
+      email,
+      pass
     );
 
-    $('clientOtpBox').classList.remove('hide');
-    msg.innerText = 'بعثنالك رمز SMS. أدخله لتأكيد رقمك.';
-  }catch(error){
-    msg.innerText = 'تعذر إرسال الرمز: ' + error.message;
+    const user = result.user;
 
-    if(recaptchaVerifier){
-      recaptchaVerifier.clear();
-      recaptchaVerifier = null;
-    }
+    await db.collection('clients').doc(user.uid).set({
+      uid: user.uid,
+      name: name,
+      phone: phone,
+      email: email,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+
+    clientUser = {
+      uid: user.uid,
+      name: name,
+      phone: phone,
+      email: email
+    };
+
+    $('clientAuthBox').classList.add('hide');
+    updateClientView();
+    renderClient();
+    renderFavorites();
+
+    msg.innerText = 'تم إنشاء الحساب بنجاح!';
+
+  }catch(error){
+    console.error('Register Client Error:', error);
+    msg.innerText = 'خطأ في إنشاء الحساب: ' + error.message;
   }
 }
 
 async function loginClient(){
+  const email = $('clientLoginEmail').value.trim().toLowerCase();
+  const pass = $('clientLoginPass').value;
   const msg = $('clientAuthMessage');
-  let phone = normalizeClientPhone(
-    $('clientLoginPhone').value.trim()
-  );
 
-  if(!phone){
-    msg.innerText = 'اكتب رقم هاتفك أولاً';
+  if(!email || !pass){
+    msg.innerText = 'اكتب البريد الإلكتروني وكلمة السر';
     return;
   }
-
-  if(!/^\+216\d{8}$/.test(phone)){
-    msg.innerText = 'اكتب رقم تونسي صحيح';
-    return;
-  }
-
-  pendingClient = {mode:'login', phone};
 
   try{
-    await setupClientRecaptcha();
-
-    confirmationResult = await auth.signInWithPhoneNumber(
-      phone,
-      recaptchaVerifier
+    const result = await auth.signInWithEmailAndPassword(
+      email,
+      pass
     );
 
-    $('clientOtpBox').classList.remove('hide');
-    msg.innerText = 'بعثنالك رمز SMS. أدخله لتسجيل الدخول.';
-
-  }catch(error){
-    console.error('Login Client Error:', error);
-    msg.innerText = 'تعذر إرسال الرمز: ' + error.message;
-
-    if(recaptchaVerifier){
-      recaptchaVerifier.clear();
-      recaptchaVerifier = null;
-    }
-  }
-}
-
-async function verifyClientOTP(){
-  const code = $('clientOtp').value.trim();
-  const msg = $('clientAuthMessage');
-
-  if(!confirmationResult || !/^\d{6}$/.test(code)){
-    msg.innerText = 'أدخل رمز SMS الصحيح';
-    return;
-  }
-
-  try{
-    const result = await confirmationResult.confirm(code);
     const user = result.user;
 
     const doc = await db.collection('clients')
       .doc(user.uid).get();
 
-    if(pendingClient?.mode === 'login' && !doc.exists){
+    if(!doc.exists){
       await auth.signOut();
-      msg.innerText = 'الحساب غير موجود. اعمل حساب جديد أولاً.';
+      msg.innerText = 'حساب الحريف غير موجود.';
       return;
     }
 
-    if(doc.exists){
-      const data = doc.data();
+    const data = doc.data();
 
-      clientUser = {
-        uid: user.uid,
-        name: data.name,
-        phone: user.phoneNumber
-      };
+    clientUser = {
+      uid: user.uid,
+      name: data.name,
+      phone: data.phone,
+      email: user.email
+    };
 
-    }else{
-      if(!pendingClient || !pendingClient.name){
-        await auth.signOut();
-        msg.innerText = 'معلومات إنشاء الحساب ناقصة.';
-        return;
-      }
-
-      await db.collection('clients').doc(user.uid).set({
-        uid: user.uid,
-        name: pendingClient.name,
-        phone: user.phoneNumber,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-      });
-
-      clientUser = {
-        uid: user.uid,
-        name: pendingClient.name,
-        phone: user.phoneNumber
-      };
-    }
-
-    pendingClient = null;
-    confirmationResult = null;
-
-    $('clientOtpBox').classList.add('hide');
     $('clientAuthBox').classList.add('hide');
-
     updateClientView();
     renderClient();
     renderFavorites();
@@ -554,10 +531,11 @@ async function verifyClientOTP(){
     msg.innerText = 'تم تسجيل الدخول بنجاح!';
 
   }catch(error){
-    console.error('Client OTP Error:', error);
-    msg.innerText = 'خطأ في تأكيد الرمز: ' + error.message;
+    console.error('Login Client Error:', error);
+    msg.innerText = 'خطأ في تسجيل الدخول: ' + error.message;
   }
 }
+
 function updateClientView(){
   let logged = !!clientUser;
 
@@ -575,7 +553,7 @@ function updateClientView(){
 }
 
 async function logoutClient(){
-  try {
+  try{
     await auth.signOut();
 
     clientUser = null;
@@ -589,11 +567,30 @@ async function logoutClient(){
     $('clientResult').innerHTML = '';
     $('clientAuthMessage').innerText = 'تم تسجيل الخروج بنجاح.';
 
-  } catch(error) {
+  }catch(error){
     $('clientAuthMessage').innerText =
       'تعذر تسجيل الخروج: ' + error.message;
   }
 }
+
+async function forgotClientPassword(){
+  const email = $('clientLoginEmail').value.trim().toLowerCase();
+  const msg = $('clientAuthMessage');
+
+  if(!email){
+    msg.innerText = 'اكتب البريد الإلكتروني أولاً';
+    return;
+  }
+
+  try{
+    await auth.sendPasswordResetEmail(email);
+    msg.innerText = 'بعثنالك رابط تغيير كلمة السر إلى بريدك الإلكتروني.';
+  }catch(error){
+    console.error('Password Reset Error:', error);
+    msg.innerText = 'تعذر إرسال رابط تغيير كلمة السر: ' + error.message;
+  }
+}
+
 function forgotClientPassword(){
  let phone=$('clientLoginPhone').value.trim();
  if(!phone){
