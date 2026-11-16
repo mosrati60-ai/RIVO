@@ -1714,6 +1714,7 @@ function clearAllData(){
 
 
 auth.onAuthStateChanged(async user => {
+ console.log('Firebase User:', user ? user.uid : 'NO USER');
   if (!user) {
     clientUser = null;
     driver = null;
