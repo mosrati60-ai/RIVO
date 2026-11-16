@@ -272,8 +272,26 @@ body.dark input,body.dark select,body.dark textarea{background:#203650;color:whi
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+ <script src="https://www.gstatic.com/firebasejs/12.0.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/12.0.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore-compat.js"></script>
 <script>
 const $=id=>document.getElementById(id);
+ const firebaseConfig = {
+  apiKey: "AIzaSyDktgkcprfcndIW1CFRVjhvPr5bf0AHIVM",
+  authDomain: "taxi-motor-120b3.firebaseapp.com",
+  projectId: "taxi-motor-120b3",
+  storageBucket: "taxi-motor-120b3.firebasestorage.app",
+  messagingSenderId: "965740197595",
+  appId: "1:965740197595:web:86acdfb12f44850d1d3efe"
+};
+
+if (!firebase.apps.length) {
+  firebase.initializeApp(firebaseConfig);
+}
+
+const auth = firebase.auth();
+const db = firebase.firestore();
 const read=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d}catch(e){return d}};
 const write=(k,v)=>localStorage.setItem(k,JSON.stringify(v));
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
