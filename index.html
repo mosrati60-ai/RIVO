@@ -563,42 +563,16 @@ async function loginClient(){
     msg.innerText = 'خطأ في تسجيل الدخول: ' + error.message;
   }
 }
-
-function updateClientView(){
-  const authBox = $('clientAuthBox');
- console.log('CLIENT ELEMENTS:', {
-  authBox: $('clientAuthBox'),
-  accountBox: $('clientAccountBox'),
-  features: $('clientFeatures')
-});
-  const accountBox = $('clientAccountBox');
-  const features = $('clientFeatures');
-
-  if(!authBox || !accountBox || !features){
-    console.error('Client HTML elements missing:', {
-      clientAuthBox: !!authBox,
-      clientAccountBox: !!accountBox,
-      clientFeatures: !!features
-    });
-    return;
-  }
-
-  const logged = !!clientUser;
-
-  authBox.classList.toggle('hide', logged);
-  accountBox.classList.toggle('hide', !logged);
-  features.classList.toggle('hide', !logged);
-
-  if(logged){
-    $('clientAccountName').innerText = clientUser.name || '';
-    $('clientAccountPhone').innerText = clientUser.phone || '';
-    $('clientName').value = clientUser.name || '';
-    $('clientPhone').value = clientUser.phone || '';
-
-    const complaintPhone = $('complaintPhone');
-    if(complaintPhone){
-      complaintPhone.value = clientUser.phone || '';
-    }
+async function logoutClient(){
+  try{
+    await auth.signOut();
+    clientUser = null;
+    updateClientView();
+    goHome();
+    console.log('تم تسجيل الخروج بنجاح');
+  }catch(error){
+    console.error('Client Logout Error:', error);
+    alert('تعذر تسجيل الخروج: ' + error.message);
   }
 }
 
