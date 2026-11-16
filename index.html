@@ -537,7 +537,7 @@ async function verifyClientOTP(){
 
     msg.innerText = 'تم تسجيل الدخول بنجاح!';
 
-  } catch(error) {
+    } catch(error) {
     console.error('Client OTP Error:', error);
     msg.innerText = 'خطأ في تأكيد الرمز: ' + error.message;
   }
