@@ -1423,8 +1423,6 @@ async function markArrived(id){
     alert('تعذر تحديث الرحلة: ' + error.message);
   }
 }
-async function startRide(id){
-
 async function finishRide(id){
 
   if(!driver || !auth.currentUser) return;
@@ -1587,8 +1585,6 @@ async function renderAdmin(){
   $('announcementView').innerText =
     read('taxiAnnouncement', 'لا يوجد إعلان حالياً');
 }
-
-async function deleteDriver(id){
 
 
 async function deleteDriver(id) {
@@ -1754,24 +1750,6 @@ auth.onAuthStateChanged(async user => {
 });
 
 
-  try {
-    const doc = await db.collection('clients').doc(user.uid).get();
-
-    if (doc.exists) {
-      clientUser = {
-        uid: user.uid,
-        name: doc.data().name,
-        phone: user.phoneNumber
-      };
-
-      updateClientView();
-      renderClient();
-      renderFavorites();
-    }
-  } catch (error) {
-    console.error('Firebase Auth:', error);
-  }
-});
 </script>
 </body>
 </html>
