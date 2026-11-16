@@ -695,7 +695,21 @@ async function loginAdmin(){
     $('adminError').innerText = '';
     openPage('adminPanel');
     renderAdmin();
-
+    $('adminRequests').innerHTML = rs.length === 0
+      ? 'ما فماش طلبات حالياً'
+      : rs.map(r => `
+          <div class="item">
+            <b>طلب رقم:</b> ${esc(r.id)}<br>
+            الحريف: ${esc(r.name)}<br>
+            الهاتف: ${esc(r.phone)}<br>
+            الانطلاق: ${esc(r.from)}<br>
+            الوجهة: ${esc(r.to)}<br>
+            المسافة: ${Number(r.distance || 0).toFixed(2)} كم<br>
+            السعر: ${Number(r.fare || 0).toFixed(2)} د.ت<br>
+            الحالة: ${esc(r.status)}<br>
+            السائق: ${esc(r.driverName || 'لم يتم تعيين سائق')}
+          </div>
+        `).join('');
   } catch(error) {
     console.error('Admin Login Error:', error);
     $('adminError').innerText =
@@ -1421,7 +1435,6 @@ async function finishRide(id){
 
 async function renderAdmin(){
 
- 
   $('totalRequests').innerText = 'جاري التحميل...';
   $('completedRequests').innerText = 'جاري التحميل...';
 
@@ -1444,12 +1457,31 @@ async function renderAdmin(){
     $('totalCommission').innerText =
       done.reduce((s,r) => s + Number(r.commission || 0), 0).toFixed(2) + ' د.ت';
 
+    // عرض جميع الطلبات في لوحة الإدارة
+    $('adminRequests').innerHTML = rs.length === 0
+      ? 'ما فماش طلبات حالياً'
+      : rs.map(r => `
+          <div class="item">
+            <b>طلب رقم:</b> ${esc(r.id)}<br>
+            الحريف: ${esc(r.name)}<br>
+            الهاتف: ${esc(r.phone)}<br>
+            الانطلاق: ${esc(r.from)}<br>
+            الوجهة: ${esc(r.to)}<br>
+            المسافة: ${Number(r.distance || 0).toFixed(2)} كم<br>
+            السعر: ${Number(r.fare || 0).toFixed(2)} د.ت<br>
+            الحالة: ${esc(r.status)}<br>
+            السائق: ${esc(r.driverName || 'لم يتم تعيين سائق')}
+          </div>
+        `).join('');
+
   } catch(error) {
     console.error('Load Rides Error:', error);
     $('totalRequests').innerText = 'خطأ';
     $('completedRequests').innerText = 'خطأ';
     $('totalIncome').innerText = 'خطأ';
     $('totalCommission').innerText = 'خطأ';
+    $('adminRequests').innerText =
+      'خطأ في تحميل الطلبات: ' + error.message;
   }
 
   $('driversList').innerText = 'جاري تحميل السائقين...';
@@ -1522,6 +1554,7 @@ async function renderAdmin(){
   $('announcementView').innerText =
     read('taxiAnnouncement', 'لا يوجد إعلان حالياً');
 }
+
 async function deleteDriver(id){
 
 
