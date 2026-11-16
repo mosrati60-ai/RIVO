@@ -779,6 +779,67 @@ function locateMe(){
   $('mapHelp').innerText='تم تحديد موقعك. اختار الوجهة.';
  },()=>alert('اسمح للمتصفح باستعمال GPS وتثبت من الإعدادات.'),{enableHighAccuracy:true,timeout:15000});
 }
+  
+async function searchDestination(value){
+  const box = $('destinationSuggestions');
+  box.innerHTML = '';
+
+  if(value.trim().length < 3) return;
+
+  box.innerText = 'جاري البحث...';
+
+  try {
+    const url = 'https://nominatim.openstreetmap.org/search?format=json&limit=5&q='
+      + encodeURIComponent(value + ', Tunisia');
+
+    const response = await fetch(url);
+    if(!response.ok) throw new Error('Search failed');
+
+    const results = await response.json();
+    box.innerHTML = '';
+
+    if(!results.length){
+      box.innerText = 'ما لقيناش المكان. جرّب اسم آخر.';
+      return;
+    }
+
+    results.forEach(place => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'blue';
+      btn.style.display = 'block';
+      btn.style.width = '100%';
+      btn.style.margin = '5px 0';
+      btn.textContent = place.display_name;
+
+      btn.onclick = () => {
+        if(!from){
+          $('mapHelp').innerText = 'حدد الانطلاق أولاً باستعمال GPS.';
+          return;
+        }
+
+        to = [Number(place.lat), Number(place.lon)];
+
+        if(m2) map.removeLayer(m2);
+        m2 = L.marker(to).addTo(map);
+
+        $('toText').innerText = place.display_name;
+        $('destinationSearch').value = place.display_name;
+        box.innerHTML = '';
+
+        map.fitBounds([from, to], {padding:[30,30]});
+        calculateRoute();
+      };
+
+      box.appendChild(btn);
+    });
+
+  } catch(error) {
+    console.error('Destination Search Error:', error);
+    box.innerText = 'تعذّر البحث. تحقق من الإنترنت وحاول مجدداً.';
+  }
+}
+
 async function calculateRoute(){
  try{
   $('mapHelp').innerText='جاري حساب المسافة...';
