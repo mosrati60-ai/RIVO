@@ -2070,7 +2070,10 @@ async function applyDriver(){
     const pin = String(
       crypto.getRandomValues(new Uint32Array(1))[0] % 10000
     ).padStart(4,'0');
-
+console.log('AUTH:', auth.currentUser?.uid);
+console.log('FARE:', route.fare, typeof route.fare);
+console.log('PHONE:', clientUser.phone, typeof clientUser.phone);
+console.log('CLIENT ID:', clientUser.uid);
     await db.collection('rides').add({
       clientId: auth.currentUser.uid,
       name: clientUser.name,
