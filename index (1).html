@@ -877,13 +877,46 @@ function sendComplaint(){
  $('complaintText').value='';
 }
 function applyDriver(){
- let name=$('applyName').value.trim(),phone=$('applyPhone').value.trim(),info=$('applyInfo').value.trim();
- if(!name||!phone)return alert('اكتب الاسم ورقم الهاتف');
- let a=read('taxiApplications',[]);
- a.push({id:Date.now(),name,phone,info,status:'قيد المراجعة'});
- write('taxiApplications',a);
- $('applyResult').innerText='تم تسجيل طلب الانضمام على هذا الجهاز.';
+
+async function applyDriver(){
+  let name = $('applyName').value.trim();
+  let phone = $('applyPhone').value.trim();
+  let info = $('applyInfo').value.trim();
+
+  if(!name || !phone){
+    return alert('اكتب الاسم ورقم الهاتف');
+  }
+
+  try {
+    const existing = await db.collection('driverApplications')
+      .where('phone', '==', phone)
+      .where('status', '==', 'قيد المراجعة')
+      .get();
+
+    if(!existing.empty){
+      return alert('عندك مطلب انضمام قيد المراجعة');
+    }
+
+    await db.collection('driverApplications').add({
+      name,
+      phone,
+      info,
+      status: 'قيد المراجعة',
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+
+    $('applyResult').innerText =
+      'تم إرسال طلب الانضمام بنجاح إلى المسؤول';
+
+    $('applyName').value = '';
+    $('applyPhone').value = '';
+    $('applyInfo').value = '';
+
+  } catch(error) {
+    alert('تعذر إرسال الطلب: ' + error.message);
+  }
 }
+
 
 /* السائقون */
 function addDriver(){
@@ -898,28 +931,48 @@ function addDriver(){
  renderAdmin();
 }
 function loginDriver(){
- let phone=$('driverPhone').value.trim(),pass=$('driverPass').value;
- let d=getDrivers().find(x=>x.phone===phone&&x.password===pass);
- if(!d||!d.active){
-  $('driverError').innerText='معلومات الدخول غالطة أو الحساب متوقف';return;
- }
- driver=d;online=!!d.online;openPage('driverPanel');
+
+async function loginDriver(){
+  let phone = $('driverPhone').value.trim();
+  let pass = $('driverPass').value;
+
+  if(!phone || !pass){
+    $('driverError').innerText = 'اكتب رقم الهاتف وكلمة السر';
+    return;
+  }
+
+  try {
+    // حساب تجريبي مربوط برقم الهاتف
+    if(phone !== '12345678'){
+      $('driverError').innerText = 'رقم الهاتف غير صحيح';
+      return;
+    }
+
+    const result = await auth.signInWithEmailAndPassword(
+      'driver1@taximoto.tn',
+      pass
+    );
+
+    const uid = result.user.uid;
+    const doc = await db.collection('drivers').doc(uid).get();
+
+    if(!doc.exists || doc.data().active !== true){
+      await auth.signOut();
+      $('driverError').innerText = 'حساب السائق غير موجود أو متوقف';
+      return;
+    }
+
+    driver = { id: uid, ...doc.data() };
+    online = !!driver.online;
+
+    $('driverError').innerText = '';
+    openPage('driverPanel');
+
+  } catch(error) {
+    $('driverError').innerText = 'معلومات الدخول غالطة';
+  }
 }
-function driverLogout(){
- if(driver){
-  let a=getDrivers(),d=a.find(x=>x.id===driver.id);
-  if(d)d.online=false;
-  write('taxiDrivers',a);
- }
- driver=null;online=false;goHome();
-}
-function toggleDriverOnline(){
- if(!driver)return;
- online=!online;
- let a=getDrivers(),d=a.find(x=>x.id===driver.id);
- if(d)d.online=online;
- write('taxiDrivers',a);renderDriver();
-}
+
 function renderDriver(){
  if(!driver)return;
  let a=getRides(),mine=a.filter(r=>r.driverId===driver.id),done=mine.filter(r=>r.status==='مكتملة');
@@ -981,23 +1034,34 @@ function renderAdmin(){
  <button class="green" onclick="toggleDriver(${d.id})">${d.active?'إيقاف':'تفعيل'}</button>
  <button class="red" onclick="deleteDriver(${d.id})">حذف</button></div>
  `).join('')||'ما فماش سائقين';
- $('adminRequests').innerHTML=rs.slice().reverse().map(r=>`
- <div class="item"><b>طلب ${r.id}</b><br>
- الحريف: ${esc(r.name)} — ${esc(r.phone)}<br>
- المسافة: ${r.distance} كم — السعر: ${r.fare} د.ت<br>
- الحالة: ${esc(r.status)}<br>السائق: ${esc(r.driverName||'غير معيّن')}<br>
- ${r.cancelReason?'سبب الإلغاء: '+esc(r.cancelReason):''}</div>
- `).join('')||'ما فماش طلبات';
- $('adminComplaints').innerHTML=read('taxiComplaints',[]).map(c=>`
- <div class="item">رقم: ${esc(c.phone)}<br>${esc(c.message)}<br>
- الحالة: ${esc(c.status)}<br>
- <button class="green" onclick="resolveComplaint(${c.id})">تمت المعالجة</button></div>
- `).join('')||'ما فماش شكاوى';
- $('applications').innerHTML=read('taxiApplications',[]).map(x=>`
- <div class="item"><b>${esc(x.name)}</b> — ${esc(x.phone)}<br>
- ${esc(x.info)}<br>${esc(x.status)}<br>
- <button class="green" onclick="approveApplication(${x.id})">قبول وإضافة كسائق</button></div>
- `).join('')||'ما فماش مطالب';
+$('applications').innerHTML = 'جاري تحميل مطالب السائقين...';
+
+db.collection('driverApplications')
+  .orderBy('createdAt', 'desc')
+  .get()
+  .then(snapshot => {
+    $('applications').innerHTML = snapshot.empty
+      ? 'ما فماش مطالب'
+      : snapshot.docs.map(doc => {
+          const x = doc.data();
+
+          return `
+            <div class="item">
+              <b>${esc(x.name)}</b> — ${esc(x.phone)}<br>
+              ${esc(x.info)}<br>
+              ${esc(x.status)}<br>
+              <button class="green"
+                onclick="approveApplication('${doc.id}')">
+                قبول وإضافة كسائق
+              </button>
+            </div>
+          `;
+        }).join('');
+  })
+  .catch(error => {
+    $('applications').innerText =
+      'خطأ في تحميل المطالب: ' + error.message;
+  });
  $('announcementView').innerText=read('taxiAnnouncement','لا يوجد إعلان حالياً');
 }
 function toggleDriver(id){
