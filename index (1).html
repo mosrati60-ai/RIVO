@@ -471,6 +471,7 @@ async function loginClient(){
   }
 }
 
+
 async function verifyClientOTP(){
   const code = $('clientOtp').value.trim();
   const msg = $('clientAuthMessage');
@@ -539,6 +540,18 @@ async function verifyClientOTP(){
   }
 }
 
+    updateClientView();
+    renderClient();
+    renderFavorites();
+
+    msg.innerText = 'تم تسجيل الدخول بنجاح!';
+
+  }catch(error){
+    console.error('Client OTP Error:', error);
+    msg.innerText = 'خطأ في تأكيد الرمز: ' + error.message;
+  }
+}
+
 
     updateClientView();
     renderClient();
@@ -558,8 +571,6 @@ async function verifyClientOTP(){
     msg.innerText = 'فشل التحقق: ' + error.message;
   }
 }
-function loginClient(){
-
 async function loginClient(){
   const msg = $('clientAuthMessage');
   let phone = $('clientLoginPhone').value.trim();
