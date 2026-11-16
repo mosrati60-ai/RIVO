@@ -930,10 +930,11 @@ function addDriver(){
  $('addResult').innerText='تمت إضافة السائق';
  renderAdmin();
 }
-async function loginDriver(){
-  let phone = $('driverPhone').value.trim();
-  let pass = $('driverPass').value;
-
+} catch(error) {
+    console.error('Driver Login Error:', error);
+    $('driverError').innerText =
+      'Firebase Error: ' + error.code + ' - ' + error.message;
+}
   if(!phone || !pass){
     $('driverError').innerText = 'اكتب رقم الهاتف وكلمة السر';
     return;
