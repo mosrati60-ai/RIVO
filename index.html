@@ -860,172 +860,234 @@ async function calculateRoute(){
  }
 }
 
-/* طلب الرحلة */
+/* الخريطة والبحث عن الوجهة */
 
-/* طلب الرحلة */
-async function orderRide(){
+function initMap(){
+  if(!window.L) return;
 
-  if(!clientUser || !auth.currentUser){
-    return alert('لازم تسجل الدخول أولاً');
-  }
-
-  const name = clientUser.name;
-  const phone = clientUser.phone;
-
-  $('clientName').value = name;
-  $('clientPhone').value = phone;
-
-  if(!from || !to || !route ||
-     !Number.isFinite(route.fare) ||
-     !Number.isFinite(route.distance)){
-    return alert('اختار الانطلاق والوجهة واستنى حساب السعر');
-  }
-
-  let scheduled = null;
-
-  if($('bookingType').value === 'later'){
-    scheduled = $('bookingTime').value;
-
-    if(!scheduled || new Date(scheduled) <= new Date()){
-      return alert('اختار موعد في المستقبل');
-    }
-  }
-
-  const pin = String(
-    Math.floor(1000 + Math.random() * 9000)
-  );
-
-  const ride = {
-    name: name,
-    phone: phone,
-    clientId: auth.currentUser.uid,
-
-    from: from.join(','),
-    to: to.join(','),
-
-    fromLat: from[0],
-    fromLng: from[1],
-    toLat: to[0],
-    toLng: to[1],
-
-    distance: Number(route.distance),
-    minutes: Number(route.minutes || 0),
-    fare: Number(route.fare),
-    commission: Number(route.commission || 0),
-
-    status: 'جديد',
-    driverId: null,
-    driverName: '',
-    driverPhone: '',
-
-    rating: 0,
-    pin: pin,
-
-    payment: $('payment').value,
-    notes: $('clientNotes').value,
-    scheduled: scheduled,
-    created: new Date().toISOString()
-  };
-
-  try{
-    const doc = await db.collection('rides').add({
-      ...ride,
-      createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
-
-    ride.id = doc.id;
-    $('clientResult').innerHTML =
-      `<div class="info">
-        تم إرسال طلبك وحفظه بنجاح.
-        رقم الطلب: <b>${esc(ride.id)}</b>
-        <br>
-        رمز الرحلة: <b>${esc(pin)}</b>
-        <br>
-        احتفظ بالرمز ولا تشاركه إلا عند بداية الرحلة.
-      </div>`;
-
-    renderClient();
-
-  }catch(error){
-    console.error('Order Ride Error:', error);
-    alert('تعذر حفظ الطلب في Firebase: ' + error.message);
-  }
-}
-/* عرض طلبات الحريف من Firebase */
-
-async function renderClient(){
-
-  if(!clientUser || !auth.currentUser){
-    $('clientRequests').innerHTML = 'سجّل الدخول لعرض طلباتك';
+  if(map){
+    map.invalidateSize();
     return;
   }
 
-  $('clientRequests').innerHTML = 'جاري تحميل طلباتك...';
+  map = L.map('clientMap').setView([36.8065,10.1815],12);
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+    attribution:'© OpenStreetMap'
+  }).addTo(map);
+
+  map.on('click',e=>{
+    const p = [e.latlng.lat,e.latlng.lng];
+
+    if(window.selectingDestination && from){
+      setDestinationPoint(p);
+      window.selectingDestination = false;
+      return;
+    }
+
+    pickPoint(p);
+  });
+}
+
+function clearRoute(){
+  if(line && map){
+    map.removeLayer(line);
+    line = null;
+  }
+}
+
+function setStartPoint(p){
+  from = p;
+  to = null;
+  route = null;
+  window.selectingDestination = false;
+
+  if(m1) map.removeLayer(m1);
+  if(m2) map.removeLayer(m2);
+
+  clearRoute();
+
+  m1 = L.marker(p).addTo(map);
+  m2 = null;
+
+  $('fromText').innerText = p.map(n=>n.toFixed(5)).join(', ');
+  $('toText').innerText = 'لم يتم الاختيار';
+  $('routeInfo').innerHTML = '';
+  $('mapHelp').innerText = 'تم تحديد الانطلاق. اختار الوجهة.';
+}
+
+function setDestinationPoint(p,name=''){
+  if(!from){
+    $('mapHelp').innerText = 'حدد الانطلاق أولاً.';
+    return;
+  }
+
+  to = p;
+
+  if(m2) map.removeLayer(m2);
+  m2 = L.marker(p).addTo(map);
+
+  $('toText').innerText = name || p.map(n=>n.toFixed(5)).join(', ');
+
+  calculateRoute();
+}
+
+function pickPoint(p){
+  if(!from){
+    setStartPoint(p);
+  }else if(!to){
+    setDestinationPoint(p);
+  }else{
+    setStartPoint(p);
+  }
+}
+
+function chooseDestinationOnMap(){
+  if(!from){
+    $('mapHelp').innerText = 'حدد مكان الانطلاق أولاً باستعمال GPS أو الخريطة.';
+    return;
+  }
+
+  window.selectingDestination = true;
+  $('mapHelp').innerText = 'اضغط على المكان الذي تريد الوصول إليه في الخريطة.';
+}
+
+function locateMe(){
+  if(!navigator.geolocation){
+    return alert('GPS غير متوفر في المتصفح');
+  }
+
+  $('mapHelp').innerText = 'جاري تحديد موقعك...';
+
+  navigator.geolocation.getCurrentPosition(pos=>{
+    const p = [pos.coords.latitude,pos.coords.longitude];
+
+    setStartPoint(p);
+    map.setView(p,16);
+
+    $('mapHelp').innerText = 'تم تحديد موقعك. اختار الوجهة.';
+  },()=>{
+    $('mapHelp').innerText = 'تعذر تحديد موقعك. اسمح للمتصفح باستعمال GPS.';
+  },{
+    enableHighAccuracy:true,
+    timeout:15000
+  });
+}
+
+async function searchDestination(value){
+  const box = $('destinationSuggestions');
+  box.innerHTML = '';
+
+  if(value.trim().length < 3) return;
+
+  box.innerText = 'جاري البحث عن العنوان...';
 
   try{
-    const snapshot = await db.collection('rides')
-      .where('clientId', '==', auth.currentUser.uid)
-      .get();
+    const url = 'https://nominatim.openstreetmap.org/search?format=json&limit=5&q='
+      + encodeURIComponent(value + ', Tunisia');
 
-    const rides = [];
+    const response = await fetch(url);
 
-    snapshot.forEach(doc => {
-      rides.push({
-        id: doc.id,
-        ...doc.data()
-      });
+    if(!response.ok) throw new Error('Search failed');
+
+    const results = await response.json();
+    box.innerHTML = '';
+
+    if(!results.length){
+      box.innerText = 'لم يتم العثور على المكان. جرّب اسماً آخر.';
+      return;
+    }
+
+    results.forEach(place=>{
+      const button = document.createElement('button');
+
+      button.type = 'button';
+      button.className = 'blue';
+      button.style.display = 'block';
+      button.style.width = '100%';
+      button.textContent = place.display_name;
+
+      button.onclick = ()=>{
+        if(!from){
+          $('mapHelp').innerText = 'حدد الانطلاق أولاً باستعمال GPS أو الخريطة.';
+          return;
+        }
+
+        const p = [Number(place.lat),Number(place.lon)];
+
+        $('destinationSearch').value = place.display_name;
+        box.innerHTML = '';
+
+        setDestinationPoint(p,place.display_name);
+        map.fitBounds([from,p],{padding:[30,30]});
+      };
+
+      box.appendChild(button);
     });
 
-    rides.sort((a,b) =>
-      String(b.created || '').localeCompare(String(a.created || ''))
+  }catch(error){
+    console.error('Destination Search Error:',error);
+    box.innerText = 'تعذّر البحث. تحقق من الإنترنت وحاول مجدداً.';
+  }
+}
+
+async function calculateRoute(){
+  if(!from || !to) return;
+
+  try{
+    $('mapHelp').innerText = 'جاري حساب المسافة...';
+
+    const url = `https://router.project-osrm.org/route/v1/driving/${from[1]},${from[0]};${to[1]},${to[0]}?overview=full&geometries=geojson`;
+
+    const response = await fetch(url);
+    if(!response.ok) throw new Error('Route request failed');
+
+    const data = await response.json();
+
+    if(!data.routes || !data.routes.length){
+      throw new Error('No route found');
+    }
+
+    const r = data.routes[0];
+    const s = getSettings();
+    const km = r.distance / 1000;
+
+    const fare = Math.max(
+      Number(s.minPrice),
+      km * Number(s.pricePerKm)
     );
 
-    $('clientRequests').innerHTML = rides.map(r => `
-      <div class="item">
-        <b>طلب ${esc(r.id)}</b><br>
-        من: ${esc(r.from || '')}<br>
-        إلى: ${esc(r.to || '')}<br>
-        السعر: ${Number(r.fare || 0)} د.ت<br>
-        الحالة: <b>${esc(r.status || '')}</b><br>
+    route = {
+      distance:+km.toFixed(2),
+      minutes:Math.ceil(r.duration/60),
+      fare:+fare.toFixed(2),
+      commission:+(fare*Number(s.commission)/100).toFixed(2)
+    };
 
-        ${r.scheduled
-          ? 'الموعد: ' + esc(r.scheduled)
-          : 'الطلب للآن'
-        }<br>
+    clearRoute();
 
-        ${r.driverName
-          ? 'السائق: ' + esc(r.driverName)
-          : ''
-        }<br>
+    line = L.geoJSON(r.geometry,{
+      style:{color:'#ff9000',weight:5}
+    }).addTo(map);
 
-        ${['جديد','مقبولة','السائق وصل','جارية'].includes(r.status)
-          ? 'رمز الرحلة: <b>' + esc(r.pin || '') + '</b><br>'
-          : ''
-        }
+    map.fitBounds(line.getBounds());
 
-        ${r.status === 'جديد'
-          ? `<button class="red" onclick="cancelRide('${r.id}')">إلغاء الطلب</button>`
-          : ''
-        }
-
-        ${r.status === 'مكتملة' && !r.rating
-          ? [1,2,3,4,5].map(n =>
-              `<button onclick="rateRide('${r.id}',${n})">⭐${n}</button>`
-            ).join('')
-          : ''
-        }
-
-        ${r.rating
-          ? 'تقييمك: ' + '⭐'.repeat(r.rating)
-          : ''
-        }
+    $('routeInfo').innerHTML = `
+      <div class="info">
+        المسافة التقديرية: ${route.distance} كم<br>
+        الوقت التقريبي: ${route.minutes} دقيقة<br>
+        السعر التقديري:
+        <b class="price">${route.fare.toFixed(2)} د.ت</b>
       </div>
-    `).join('') || 'ما فماش طلبات بهذا الحساب';
+    `;
+
+    $('mapHelp').innerText = 'تم حساب المسافة والسعر.';
 
   }catch(error){
-    console.error('Render Client Error:', error);
-    $('clientRequests').innerText =
-      'تعذر تحميل الطلبات: ' + error.message;
+    console.error('Calculate Route Error:',error);
+    route = null;
+    $('routeInfo').innerHTML = '';
+    $('mapHelp').innerText = 'تعذر حساب الطريق. جرّب نقاطاً أخرى أو تحقق من الإنترنت.';
   }
 }
 
