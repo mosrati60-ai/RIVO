@@ -1465,11 +1465,15 @@ async function finishRide(id){
 
 /* لوحة المسؤول */
 
+
 async function renderAdmin(){
 
   $('totalRequests').innerText = 'جاري التحميل...';
   $('completedRequests').innerText = 'جاري التحميل...';
+  $('totalIncome').innerText = 'جاري التحميل...';
+  $('totalCommission').innerText = 'جاري التحميل...';
 
+  // تحميل الرحلات
   try {
     const ridesSnapshot = await db.collection('rides').get();
 
@@ -1489,27 +1493,64 @@ async function renderAdmin(){
     $('totalCommission').innerText =
       done.reduce((s,r) => s + Number(r.commission || 0), 0).toFixed(2) + ' د.ت';
 
-    // عرض جميع الطلبات في لوحة الإدارة
-   // عرض جميع الطلبات في لوحة الإدارة
-$('adminRequests').innerHTML = rs.map(r => `
-  <div class="item">
-    <b>طلب رقم:</b> ${esc(r.id)}<br>
-    الحريف: ${esc(r.name || '')}<br>
-    الهاتف: ${esc(r.phone || '')}<br>
-    الانطلاق: ${esc(r.from || '')}<br>
-    الوجهة: ${esc(r.to || '')}<br>
-    المسافة: ${Number(r.distance || 0).toFixed(2)} كم<br>
-    السعر: ${Number(r.fare || 0).toFixed(2)} د.ت<br>
-    الحالة: ${esc(r.status || '')}<br>
-    السائق: ${esc(r.driverName || 'لم يتم تعيين سائق')}
-  </div>
-`).join('') || 'ما فماش طلبات حالياً';
+    $('adminRequests').innerHTML = rs.map(r => `
+      <div class="item">
+        <b>طلب رقم:</b> ${esc(r.id)}<br>
+        الحريف: ${esc(r.name || '')}<br>
+        الهاتف: ${esc(r.phone || '')}<br>
+        الانطلاق: ${esc(r.from || '')}<br>
+        الوجهة: ${esc(r.to || '')}<br>
+        المسافة: ${Number(r.distance || 0).toFixed(2)} كم<br>
+        السعر: ${Number(r.fare || 0).toFixed(2)} د.ت<br>
+        الحالة: ${esc(r.status || '')}<br>
+        السائق: ${esc(r.driverName || 'لم يتم تعيين سائق')}
+      </div>
+    `).join('') || 'ما فماش طلبات حالياً';
 
   } catch(error) {
+    console.error('Load Rides Error:', error);
+    $('adminRequests').innerText =
+      'خطأ في تحميل الطلبات: ' + error.message;
+  }
+
+  // تحميل السائقين
+  $('driversList').innerText = 'جاري تحميل السائقين...';
+
+  try {
+    const snapshot = await db.collection('drivers').get();
+
+    $('driversList').innerHTML = snapshot.empty
+      ? 'ما فماش سائقين'
+      : snapshot.docs.map(doc => {
+          const d = doc.data();
+
+          return `
+            <div class="item">
+              <b>${esc(d.name || '')}</b><br>
+              ${esc(d.phone || '')}<br>
+              الحالة: ${d.active ? 'نشط' : 'متوقف'}
+              — ${d.online ? 'متصل' : 'غير متصل'}<br>
+
+              <button class="green"
+                onclick="toggleDriver('${doc.id}', ${d.active === true})">
+                ${d.active ? 'إيقاف' : 'تفعيل'}
+              </button>
+
+              <button class="red"
+                onclick="deleteDriver('${doc.id}')">
+                حذف
+              </button>
+            </div>
+          `;
+        }).join('');
+
+  } catch(error) {
+    console.error('Load Drivers Error:', error);
     $('driversList').innerText =
       'خطأ في تحميل السائقين: ' + error.message;
   }
 
+  // تحميل مطالب السائقين
   $('applications').innerHTML = 'جاري تحميل مطالب السائقين...';
 
   try {
@@ -1524,9 +1565,10 @@ $('adminRequests').innerHTML = rs.map(r => `
 
           return `
             <div class="item">
-              <b>${esc(x.name)}</b> — ${esc(x.phone)}<br>
-              ${esc(x.info)}<br>
-              ${esc(x.status)}
+              <b>${esc(x.name || '')}</b> — ${esc(x.phone || '')}<br>
+              ${esc(x.info || '')}<br>
+              ${esc(x.status || '')}
+
               ${x.status === 'قيد المراجعة' ? `
                 <button class="green"
                   onclick="approveApplication('${doc.id}')">
@@ -1538,6 +1580,7 @@ $('adminRequests').innerHTML = rs.map(r => `
         }).join('');
 
   } catch(error) {
+    console.error('Load Applications Error:', error);
     $('applications').innerText =
       'خطأ في تحميل المطالب: ' + error.message;
   }
@@ -1545,7 +1588,6 @@ $('adminRequests').innerHTML = rs.map(r => `
   $('announcementView').innerText =
     read('taxiAnnouncement', 'لا يوجد إعلان حالياً');
 }
-
 
 async function deleteDriver(id) {
   if (!auth.currentUser) {
