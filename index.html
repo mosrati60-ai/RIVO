@@ -618,13 +618,17 @@ function forgotClientPassword(){
  window.open('https://wa.me/21623348531?text='+encodeURIComponent(message),'_blank');
 }
 
+
 /* المسؤول */
 function checkAdmin(){
- let a=read('taxiAdmin',null);
- $('adminRegisterBox').classList.toggle('hide',!!a);
- $('adminLoginBox').classList.toggle('hide',!a);
- if(a)$('adminWelcome').innerText='مرحبا '+a.name;
+  $('adminRegisterBox').classList.add('hide');
+  $('adminLoginBox').classList.remove('hide');
+
+  if($('adminWelcome')){
+    $('adminWelcome').innerText = 'مرحبا بك في فضاء المسؤول';
+  }
 }
+
 
 function registerAdmin(){
   $('adminError').innerText =
