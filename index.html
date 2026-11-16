@@ -2011,6 +2011,66 @@ async function applyDriver(){
       'تعذّر إرسال الطلب: ' + error.message;
   }
 }
+  async function orderRide(){
+
+  if(!clientUser || !auth.currentUser){
+    return alert('سجّل الدخول أولاً');
+  }
+
+  if(!from || !to || !route){
+    return alert('اختار الانطلاق والوجهة واستنى حساب السعر');
+  }
+
+  if($('bookingType').value === 'later' && !$('bookingTime').value){
+    return alert('اختار موعد الرحلة');
+  }
+
+  try{
+    $('clientResult').innerText = 'جاري إرسال الطلب...';
+
+    const pin = String(
+      crypto.getRandomValues(new Uint32Array(1))[0] % 10000
+    ).padStart(4,'0');
+
+    await db.collection('rides').add({
+      clientId: auth.currentUser.uid,
+      name: clientUser.name,
+      phone: clientUser.phone,
+
+      from: $('fromText').innerText,
+      to: $('toText').innerText,
+
+      fromLat: from[0],
+      fromLng: from[1],
+      toLat: to[0],
+      toLng: to[1],
+
+      distance: route.distance,
+      minutes: route.minutes,
+      fare: route.fare,
+      commission: route.commission,
+
+      pin: pin,
+      status: 'جديد',
+      payment: $('payment').value,
+      bookingType: $('bookingType').value,
+      bookingTime: $('bookingTime').value,
+      notes: $('clientNotes').value.trim(),
+
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+
+    $('clientResult').innerText =
+      'تم إرسال طلبك بنجاح! استنى قبول سائق. رمز الرحلة: ' + pin;
+
+    renderClient();
+
+  }catch(error){
+    console.error('Order Ride Error:',error);
+    $('clientResult').innerText =
+      'تعذّر إرسال الطلب: ' + error.message;
+  }
+}
 </script>
 </body>
 </html>
