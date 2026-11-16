@@ -431,9 +431,15 @@ function goHome(){
  $('home').style.display='flex';
  driver=null;
 }
-function contactAdmin(){window.location.href =
-  'https://wa.me/21623348531?text=' + encodeURIComponent(message);
+
+function contactAdmin(){
+  const message = 'مرحباً، نحب نتواصل مع المسؤول بخصوص تطبيق Taxi Moto Tunisia.';
+  window.open(
+    'https://wa.me/21623348531?text=' + encodeURIComponent(message),
+    '_blank'
+  );
 }
+
 function toggleTheme(){
  document.body.classList.toggle('dark');
  localStorage.setItem('taxiDark',document.body.classList.contains('dark')?'1':'0');
@@ -1366,21 +1372,24 @@ console.log('RENDER DRIVER START');
   $('driverMyRequests').innerHTML = 'جاري تحميل رحلاتك...';
 
 // استقبال الطلبات الجديدة مباشرة من Firebase
-if (!stopDriverNewRides) {
- db.collection('rides')
-  .where('status', '==', 'جديد')
-  .where('driverId', '==', null)
-  .onSnapshot(snapshot => {
-      console.log('LIVE UPDATE وصل:', snapshot.size);
 
-      if (driver && auth.currentUser) {
+if(!stopDriverNewRides){
+  stopDriverNewRides = db.collection('rides')
+    .where('status','==','جديد')
+    .where('driverId','==',null)
+    .onSnapshot(snapshot => {
+      console.log('تحديث الطلبات الجديدة:', snapshot.size);
+
+      if(driver && auth.currentUser){
         renderDriver();
       }
     }, error => {
-      console.error('Live Requests Error:', error);
-      alert('خطأ استقبال الطلبات: ' + error.message);
+      console.error('Live Requests Error:',error);
+      $('driverRequests').innerText =
+        'خطأ في استقبال الطلبات: ' + error.message;
     });
 }
+
 
 
   try {
