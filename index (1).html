@@ -1508,29 +1508,27 @@ async function renderAdmin(){
   $('announcementView').innerText =
     read('taxiAnnouncement', 'لا يوجد إعلان حالياً');
 }
-
-
-async function toggleDriver(id, currentStatus){
+async function deleteDriver(id){
 
   if(!auth.currentUser){
     return alert('لازم المسؤول يعمل تسجيل دخول');
   }
 
-  try {
-    await db.collection('drivers').doc(id).update({
-      active: !currentStatus
-    });
+  if(!confirm('متأكد تحب تحذف السائق؟')){
+    return;
+  }
 
-    alert('تم تحديث حالة السائق');
+  try{
+    await db.collection('drivers').doc(id).delete();
+
+    alert('تم حذف السائق');
     renderAdmin();
 
-  } catch(error) {
-    console.error('Toggle Driver:', error);
-    alert('تعذر تحديث السائق: ' + error.message);
+  }catch(error){
+    console.error('Delete Driver:', error);
+    alert('تعذر حذف السائق: ' + error.message);
   }
 }
-
-
 async function approveApplication(id){
 
   if(!auth.currentUser){
