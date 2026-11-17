@@ -1357,145 +1357,50 @@ async function cancelRide(id){
 
 /* تقييم الرحلة */
 
+
 async function rateRide(id,n){
 
   if(!clientUser || !auth.currentUser) return;
 
-  if(!Number.isInteger(n) || n < 1 || n > 5) return;
+  if(!Number.isInteger(n) || n < 1 || n > 5)
+    return alert('اختار تقييم من 1 إلى 5');
 
   try{
+
+    const uid = auth.currentUser.uid;
     const ref = db.collection('rides').doc(id);
-    const doc = await ref.get();
 
-    if(!doc.exists){
-      return alert('الرحلة غير موجودة');
-    }
+    await db.runTransaction(async transaction => {
 
-    const ride = doc.data();
+      const doc = await transaction.get(ref);
 
-    if(
-      ride.clientId !== auth.currentUser.uid ||
-      ride.status !== 'مكتملة' ||
-      ride.rating
-    ){
-      return alert('ما تنجمش تقيّم الرحلة');
-    }
+      if(!doc.exists)
+        throw new Error('الرحلة غير موجودة');
 
-    await ref.update({
-      rating: n
+      const ride = doc.data();
+
+      if(
+        ride.clientId !== uid ||
+        ride.status !== 'مكتملة' ||
+        (ride.rating != null && ride.rating !== 0)
+      ){
+        throw new Error('ما تنجمش تقيّم الرحلة');
+      }
+
+      transaction.update(ref,{
+        rating: n
+      });
+
     });
 
     alert('شكراً على تقييمك!');
     renderClient();
 
   }catch(error){
-    console.error('Rate Ride Error:', error);
+
+    console.error('Rate Ride Error:',error);
+
     alert('تعذر تسجيل التقييم: ' + error.message);
-  }
-}
-
-function openMaps(a,b,c,d){
- if(![a,b,c,d].every(Number.isFinite))return alert('الإحداثيات غير متوفرة');
- window.open(`https://www.google.com/maps/dir/${a},${b}/${c},${d}`,'_blank');
-}
-function chat(phone){
- let n=String(phone).replace(/\D/g,'');
- if(n.startsWith('0'))n='216'+n.slice(1);
- else if(!n.startsWith('216'))n='216'+n;
- window.open('https://wa.me/'+n,'_blank');
-}
-
-/* الأماكن المفضلة */
-function saveFavorite(){
- if(!clientUser)return alert('سجّل الدخول أولاً');
- let name=$('favName').value.trim(),address=$('favAddress').value.trim();
- if(!name||!address)return alert('اكتب اسم المكان والعنوان');
- let key='taxiFavorites_'+clientUser.phone;
- let a=read(key,[]);
- a.push({id:Date.now(),name,address});
- write(key,a);
- $('favName').value='';$('favAddress').value='';
- renderFavorites();
-}
-function renderFavorites(){
- if(!clientUser){$('favorites').innerHTML='';return}
- let a=getClientFavorites();
- $('favorites').innerHTML=a.map(f=>`
- <div class="item"><b>${esc(f.name)}</b>: ${esc(f.address)}
- <button class="red" onclick="deleteFavorite(${f.id})">حذف</button></div>
- `).join('')||'ما فماش أماكن محفوظة';
-}
-function deleteFavorite(id){
- if(!clientUser)return;
- let key='taxiFavorites_'+clientUser.phone;
- write(key,read(key,[]).filter(f=>f.id!==id));
- renderFavorites();
-}
-/* السائقون */
-
-/* السائقون */
-
-function addDriver(){
-  alert('إضافة السائقين تتم حالياً من Firebase Authentication وFirestore');
-}
-
-
-async function loginDriver(){
-
-  const email = $('driverEmail').value.trim().toLowerCase();
-  const pass = $('driverPass').value;
-
-  if(!email || !pass){
-    $('driverError').innerText =
-      'اكتب البريد الإلكتروني وكلمة السر';
-    return;
-  }
-
-  try{
-    const result = await auth.signInWithEmailAndPassword(
-      email,
-      pass
-    );
-
-    const uid = result.user.uid;
-
-    const doc = await db.collection('drivers').doc(uid).get();
-
-    if(!doc.exists){
-      await auth.signOut();
-      $('driverError').innerText =
-        'حسابك لم تتم الموافقة عليه بعد من المسؤول';
-      return;
-    }
-
-    const data = doc.data();
-
-    if(data.active !== true){
-      await auth.signOut();
-      $('driverError').innerText =
-        'حساب السائق متوقف';
-      return;
-    }
-
-    if(data.email && data.email.toLowerCase() !== email){
-      await auth.signOut();
-      $('driverError').innerText =
-        'البريد الإلكتروني غير مطابق للحساب';
-      return;
-    }
-
-    driver = {id:uid,...data};
-    online = !!driver.online;
-
-    $('driverError').innerText = '';
-
-    openPage('driverPanel');
-
-  }catch(error){
-    console.error('Driver Login Error:',error);
-
-    $('driverError').innerText =
-      'فشل الدخول: ' + error.message;
   }
 }
 
@@ -1503,7 +1408,9 @@ async function loginDriver(){
 /* صفحة السائق من Firebase */
 
 async function renderDriver(){
-console.log('RENDER DRIVER START');
+
+  console.log('RENDER DRIVER START');
+
   if(!driver || !auth.currentUser) return;
 
   $('driverWelcome').innerText = 'مرحبا ' + driver.name;
@@ -1512,63 +1419,8 @@ console.log('RENDER DRIVER START');
   $('driverRequests').innerHTML = 'جاري تحميل الطلبات...';
   $('driverMyRequests').innerHTML = 'جاري تحميل رحلاتك...';
 
-// استقبال الطلبات الجديدة مباشرة من Firebase
-
-if(!stopDriverNewRides){
-  stopDriverNewRides = db.collection('rides')
-    .where('status','==','جديد')
-    .where('driverId','==',null)
-    .onSnapshot(snapshot => {
-      console.log('تحديث الطلبات الجديدة:', snapshot.size);
-
-      if(driver && auth.currentUser){
-        renderDriver();
-      }
-    }, error => {
-      console.error('Live Requests Error:',error);
-      $('driverRequests').innerText =
-        'خطأ في استقبال الطلبات: ' + error.message;
-    });
-}
-
-
-
-  try {
-
-    const uid = auth.currentUser.uid;
-
-    const [newSnapshot, mineSnapshot] = await Promise.all([
-
-      db.collection('rides')
-  .where('status', '==', 'جديد')
-  .where('driverId', '==', null)
-  .get(),
-
-      db.collection('rides')
-        .where('driverId', '==', uid)
-        .get()
-
-    ]);
-
-    const available = [];
-    const mine = [];
-
-    newSnapshot.forEach(doc => {
-      available.push({id: doc.id, ...doc.data()});
-    });
-
-    mineSnapshot.forEach(doc => {
-      mine.push({id: doc.id, ...doc.data()});
-    });
-
-    const done = mine.filter(r => r.status === 'مكتملة');
-
-    $('driverCount').innerText = done.length;
-
-    $('driverIncome').innerText =
-      done.reduce((sum,r) =>
-        sum + Number(r.fare || 0) - Number(r.commission || 0), 0
-      ).toFixed(2) + ' د.ت';
+  // عرض الطلبات الجديدة
+  function showAvailableRequests(available){
 
     $('driverRequests').innerHTML = online
       ? available.map(r => `
@@ -1592,36 +1444,140 @@ if(!stopDriverNewRides){
         </div>
       `).join('') || 'ما فماش طلبات جديدة'
       : 'فعّل الاتصال باش تشوف الطلبات';
+  }
 
+  // استقبال الطلبات الجديدة مباشرة
+  if(!stopDriverNewRides){
+
+    stopDriverNewRides = db.collection('rides')
+      .where('status','==','جديد')
+      .where('driverId','==',null)
+      .onSnapshot(snapshot => {
+
+        console.log('تحديث الطلبات الجديدة:', snapshot.size);
+
+        if(!driver || !auth.currentUser) return;
+
+        const available = [];
+
+        snapshot.forEach(doc => {
+          available.push({
+            id: doc.id,
+            ...doc.data()
+          });
+        });
+
+        showAvailableRequests(available);
+
+      }, error => {
+
+        console.error('Live Requests Error:',error);
+
+        $('driverRequests').innerText =
+          'خطأ في استقبال الطلبات: ' + error.message;
+
+      });
+  }
+
+  try {
+
+    const uid = auth.currentUser.uid;
+
+    const [newSnapshot, mineSnapshot] = await Promise.all([
+
+      db.collection('rides')
+        .where('status','==','جديد')
+        .where('driverId','==',null)
+        .get(),
+
+      db.collection('rides')
+        .where('driverId','==',uid)
+        .get()
+
+    ]);
+
+    const available = [];
+    const mine = [];
+
+    newSnapshot.forEach(doc => {
+      available.push({
+        id: doc.id,
+        ...doc.data()
+      });
+    });
+
+    mineSnapshot.forEach(doc => {
+      mine.push({
+        id: doc.id,
+        ...doc.data()
+      });
+    });
+
+    // إحصائيات السائق
+    const done = mine.filter(r => r.status === 'مكتملة');
+
+    $('driverCount').innerText = done.length;
+
+    $('driverIncome').innerText =
+      done.reduce((sum,r) =>
+        sum + Number(r.fare || 0) - Number(r.commission || 0), 0
+      ).toFixed(2) + ' د.ت';
+
+    // الطلبات الجديدة
+    showAvailableRequests(available);
+
+    // الرحلات الخاصة بالسائق
     $('driverMyRequests').innerHTML = mine
+
       .filter(r => !['مكتملة','ملغاة'].includes(r.status))
+
       .map(r => `
         <div class="item">
+
           <b>رحلة ${esc(r.id)}</b><br>
           الحريف: ${esc(r.name || '')}<br>
           الوجهة: ${esc(r.to || '')}<br>
           الحالة: ${esc(r.status || '')}<br>
 
           ${r.status === 'مقبولة'
-            ? `<button class="primary" onclick="markArrived('${r.id}')">وصلت للحريف</button>`
+            ? `<button class="primary"
+                onclick="markArrived('${r.id}')">
+                وصلت للحريف
+              </button>`
             : ''}
 
           ${r.status === 'السائق وصل'
             ? `<label>أدخل رمز الرحلة PIN</label>
-               <input id="pin-${r.id}" inputmode="numeric" placeholder="رمز الرحلة">
-               <button class="primary" onclick="startRide('${r.id}')">تأكيد بداية الرحلة</button>`
+               <input id="pin-${r.id}"
+                 inputmode="numeric"
+                 maxlength="4"
+                 placeholder="رمز الرحلة">
+
+               <button class="primary"
+                 onclick="startRide('${r.id}')">
+                 تأكيد بداية الرحلة
+               </button>`
             : ''}
 
           ${r.status === 'جارية'
-            ? `<button class="green" onclick="finishRide('${r.id}')">إتمام الرحلة</button>`
+            ? `<button class="green"
+                onclick="finishRide('${r.id}')">
+                إتمام الرحلة
+              </button>`
             : ''}
+
         </div>
       `).join('') || 'ما عندك حتى رحلة جارية';
 
   } catch(error) {
-    console.error('Render Driver Error:', error);
-    $('driverRequests').innerText = 'خطأ في تحميل الطلبات: ' + error.message;
-    $('driverMyRequests').innerText = 'تعذر تحميل رحلاتك';
+
+    console.error('Render Driver Error:',error);
+
+    $('driverRequests').innerText =
+      'خطأ في تحميل الطلبات: ' + error.message;
+
+    $('driverMyRequests').innerText =
+      'تعذر تحميل رحلاتك';
   }
 }
 
@@ -1998,22 +1954,45 @@ async function deleteDriver(id) {
   }
 }
 
-async function toggleDriver(id, currentStatus) {
-  if (!auth.currentUser) {
+async function toggleDriver(id, currentStatus){
+
+  if(!auth.currentUser){
     return alert('لازم المسؤول يعمل تسجيل دخول');
   }
 
-  try {
-    await db.collection('drivers').doc(id).update({
-      active: !currentStatus
+  if(auth.currentUser.uid !== 'n4eiE6M94aYkBCxDBTgcjerNAJU2'){
+    return alert('ما عندكش صلاحية المسؤول');
+  }
+
+  try{
+
+    const ref = db.collection('drivers').doc(id);
+
+    await db.runTransaction(async transaction => {
+
+      const doc = await transaction.get(ref);
+
+      if(!doc.exists){
+        throw new Error('حساب السائق غير موجود');
+      }
+
+      const data = doc.data();
+
+      if(data.activeRideId != null){
+        throw new Error('ما تنجمش تبدّل حالة السائق وعنده رحلة نشيطة');
+      }
+
+      transaction.update(ref,{
+        active: !data.active
+      });
+
     });
 
     alert(currentStatus ? 'تم إيقاف السائق' : 'تم تفعيل السائق');
-
     await renderAdmin();
 
-  } catch (error) {
-    console.error('Toggle Driver Error:', error);
+  }catch(error){
+    console.error('Toggle Driver Error:',error);
     alert('تعذر تغيير حالة السائق: ' + error.message);
   }
 }
@@ -2140,9 +2119,14 @@ function renderClient(){
 
   box.innerText = 'جاري تحميل طلباتك...';
 
+  const uid = auth.currentUser.uid;
+
   clientRidesUnsubscribe = db.collection('rides')
-    .where('clientId', '==', auth.currentUser.uid)
+    .where('clientId', '==', uid)
     .onSnapshot(snapshot => {
+
+      if(!clientUser || !auth.currentUser ||
+         auth.currentUser.uid !== uid) return;
 
       const rides = snapshot.docs.map(doc => ({
         id: doc.id,
@@ -2155,15 +2139,34 @@ function renderClient(){
         return tb - ta;
       });
 
+      if(rides.length === 0){
+        box.innerHTML = 'ما عندك حتى طلب رحلة حالياً';
+        return;
+      }
+
       box.innerHTML = rides.map(r => `
+
         <div class="item">
+
           <b>رحلة: ${esc(r.id)}</b><br>
+
           الانطلاق: ${esc(r.from || '')}<br>
+
           الوجهة: ${esc(r.to || '')}<br>
+
+          المسافة: ${Number(r.distance || 0).toFixed(2)} كم<br>
+
           السعر: ${Number(r.fare || 0).toFixed(2)} د.ت<br>
+
           الحالة: <b>${esc(r.status || '')}</b><br>
 
+          ${r.bookingType === 'later' && r.bookingTime
+            ? `موعد الرحلة: ${esc(r.bookingTime)}<br>`
+            : ''}
+
           ${r.driverName ? `
+            <hr>
+            **معلومات السائق**<br>
             السائق: ${esc(r.driverName)}<br>
             الهاتف: ${esc(r.driverPhone || '')}<br>
           ` : ''}
@@ -2177,17 +2180,23 @@ function renderClient(){
 
           ${r.status === 'مكتملة' && !r.rating ? `
             <p>قيّم الرحلة:</p>
+
             ${[1,2,3,4,5].map(n => `
               <button class="blue"
                 onclick="rateRide('${r.id}',${n})">
                 ${n} ⭐
               </button>
             `).join('')}
+
           ` : ''}
 
-          ${r.rating ? `تقييمك: ${r.rating} ⭐` : ''}
+          ${r.rating
+            ? `تقييمك: ${r.rating} ⭐`
+            : ''}
+
         </div>
-      `).join('') || 'ما عندك حتى طلب رحلة حالياً';
+
+      `).join('');
 
     }, error => {
 
