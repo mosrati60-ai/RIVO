@@ -62,6 +62,14 @@ body.dark input,body.dark select,body.dark textarea{background:#203650;color:whi
 <body>
 
 <section class="hero" id="home">
+ <div style="text-align:center;padding:10px">
+  <select id="languageSelect"
+          onchange="changeLanguage(this.value)"
+          style="width:auto;min-width:150px;font-weight:bold">
+    <option value="ar">🇹🇳 العربية</option>
+    <option value="fr">🇫🇷 Français</option>
+  </select>
+</div>
  <div><div class="logo">TAXI <span class="orange">MOTO</span></div><div class="flag">🇹🇳</div></div>
  <div class="welcome">
   <div class="motor"></div>
@@ -384,7 +392,76 @@ const getSettings=()=>read('taxiSettings',{pricePerKm:.8,minPrice:2,commission:1
 let driver=null,online=false,map=null,from=null,to=null,m1=null,m2=null,line=null,route=null;
 let clientUser=null;
 let stopDriverNewRides = null;
+/* نظام اختيار اللغة */
+let currentLanguage = localStorage.getItem('taxiLanguage') || 'ar';
 
+function changeLanguage(lang){
+  if(!['ar','fr'].includes(lang)) return;
+
+  currentLanguage = lang;
+  localStorage.setItem('taxiLanguage', lang);
+
+  document.documentElement.lang = lang;
+  document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
+
+  $('languageSelect').value = lang;
+
+  document.querySelectorAll('.sectionTitle').forEach(el=>{
+    el.style.borderRight = lang === 'ar' ? '4px solid #ff9000' : 'none';
+    el.style.borderLeft = lang === 'fr' ? '4px solid #ff9000' : 'none';
+    el.style.paddingRight = lang === 'ar' ? '10px' : '0';
+    el.style.paddingLeft = lang === 'fr' ? '10px' : '0';
+  });
+}
+
+document.addEventListener('DOMContentLoaded',()=>{
+  changeLanguage(currentLanguage);
+});
+  /* قاموس اللغات العربية والفرنسية */
+const appTranslations = {
+  ar: {
+    home: 'الرئيسية',
+    client: 'الحريف',
+    driver: 'السائق',
+    admin: 'الإدارة',
+    login: 'تسجيل الدخول',
+    register: 'إنشاء حساب',
+    logout: 'تسجيل الخروج',
+    name: 'الاسم',
+    phone: 'رقم الهاتف',
+    pickup: 'مكان الانطلاق',
+    destination: 'الوجهة',
+    order: 'اطلب رحلة',
+    cancel: 'إلغاء',
+    confirm: 'تأكيد',
+    save: 'حفظ',
+    back: 'رجوع'
+  },
+  fr: {
+    home: 'Accueil',
+    client: 'Client',
+    driver: 'Chauffeur',
+    admin: 'Administration',
+    login: 'Connexion',
+    register: 'Créer un compte',
+    logout: 'Déconnexion',
+    name: 'Nom',
+    phone: 'Numéro de téléphone',
+    pickup: 'Lieu de départ',
+    destination: 'Destination',
+    order: 'Commander une course',
+    cancel: 'Annuler',
+    confirm: 'Confirmer',
+    save: 'Enregistrer',
+    back: 'Retour'
+  }
+};
+
+function translateText(key){
+  return appTranslations[currentLanguage]?.[key]
+      || appTranslations.ar[key]
+      || key;
+}
 function openPage(id){
   document.querySelectorAll('.page,.hero').forEach(x=>{
     x.style.display = 'none';
