@@ -373,12 +373,12 @@ body.dark input,body.dark select,body.dark textarea{background:#203650;color:whi
 <div class="card muted" style="margin:15px">
  تنبيه: هذه نسخة تجريبية تحفظ البيانات في نفس المتصفح فقط. لا يوجد تزامن بين الهواتف أو تتبع حي أو إشعارات حقيقية. كلمات السر غير مشفّرة في هذه النسخة. لا تستعمل كلمات سر حقيقية.
 </div>
-const $ = (id) => document.getElementById(id);
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
  <script src="https://www.gstatic.com/firebasejs/12.0.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/12.0.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore-compat.js"></script>
  <script>
+  const $ = (id) => document.getElementById(id);
   alert('JavaScript يخدم');
   window.openPage = function(id){
   document.querySelectorAll('.page,.hero').forEach(x=>{
@@ -395,7 +395,6 @@ const $ = (id) => document.getElementById(id);
   page.style.display = 'block';
   window.scrollTo(0,0);
 };
-const $=id=>document.getElementById(id);
  const firebaseConfig = {
   apiKey: "AIzaSyDktgkcprfcndIW1CFRVjhvPr5bf0AHIVM",
   authDomain: "taxi-motor-120b3.firebaseapp.com",
@@ -1091,50 +1090,66 @@ async function addDriver(){
       'تعذر إضافة السائق: ' + error.message;
   }
 }
-async function saveSettings(){
-
+async function addDriver(){
   if(!auth.currentUser ||
      auth.currentUser.uid !== 'n4eiE6M94aYkBCxDBTgcjerNAJU2'){
-    return alert('ما عندكش صلاحية المسؤول');
+    return $('addResult').innerText='ما عندكش صلاحية المسؤول';
   }
 
-  const pricePerKm = Number($('pricePerKm').value);
-  const minPrice = Number($('minPrice').value);
-  const commission = Number($('commission').value);
+  const name=$('newName').value.trim();
+  const phone=$('newPhone').value.trim();
+  const email=$('newEmail').value.trim().toLowerCase();
+  const password=$('newPassword').value;
 
-  if(
-    !Number.isFinite(pricePerKm) || pricePerKm <= 0 ||
-    !Number.isFinite(minPrice) || minPrice < 0 ||
-    !Number.isFinite(commission) ||
-    commission < 0 || commission > 100
-  ){
-    return alert('تحقق من الأسعار والعمولة');
+  if(!name || !phone || !email || !password){
+    return $('addResult').innerText='عمر جميع الخانات';
   }
+
+  if(password.length<6){
+    return $('addResult').innerText='كلمة السر لازم تكون 6 أحرف على الأقل';
+  }
+
+  let secondaryApp;
 
   try{
+    $('addResult').innerText='جاري إنشاء حساب السائق...';
 
-    await db.collection('settings').doc('main').set({
-      pricePerKm,
-      minPrice,
-      commission,
-      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-    }, {merge:true});
+    secondaryApp=firebase.apps.find(app=>app.name==='DriverCreation');
 
-    write('taxiSettings', {
-      pricePerKm,
-      minPrice,
-      commission
+    if(!secondaryApp){
+      secondaryApp=firebase.initializeApp(firebaseConfig,'DriverCreation');
+    }
+
+    const secondaryAuth=secondaryApp.auth();
+
+    const credential=await secondaryAuth.createUserWithEmailAndPassword(
+      email,password
+    );
+
+    await db.collection('drivers').doc(credential.user.uid).set({
+      uid:credential.user.uid,
+      name:name,
+      email:email,
+      phone:phone,
+      info:'',
+      active:true,
+      online:false,
+      activeRideId:null,
+      approvedAt:firebase.firestore.FieldValue.serverTimestamp()
     });
 
-    $('settingsResult').innerText =
-      'تم حفظ الأسعار والعمولة بنجاح';
+    await secondaryAuth.signOut();
+
+    $('newName').value='';
+    $('newPhone').value='';
+    $('newEmail').value='';
+    $('newPassword').value='';
+
+    $('addResult').innerText='تم إنشاء حساب السائق بنجاح';
 
   }catch(error){
-
-    console.error('Save Settings Error:', error);
-
-    $('settingsResult').innerText =
-      'تعذر الحفظ: ' + error.message;
+    console.error('Add Driver Error:',error);
+    $('addResult').innerText='تعذر إضافة السائق: '+error.message;
   }
 }
 
