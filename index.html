@@ -1656,6 +1656,7 @@ async function toggleDriverOnline(){
   }
 }
 
+
 async function acceptRide(id){
 
   if(!driver || !online || !auth.currentUser)
@@ -1670,7 +1671,6 @@ async function acceptRide(id){
 
     await db.runTransaction(async (transaction) => {
 
-      // قراءة الرحلة وحساب السائق
       const rideDoc = await transaction.get(rideRef);
       const driverDoc = await transaction.get(driverRef);
 
@@ -1683,19 +1683,15 @@ async function acceptRide(id){
       const r = rideDoc.data();
       const d = driverDoc.data();
 
-      // التحقق من الرحلة
       if(r.status !== 'جديد' || r.driverId)
         throw new Error('الطلب ما عادش متاح');
 
-      // التحقق من حساب السائق
       if(d.active !== true)
         throw new Error('حسابك غير مفعّل');
 
-      // منع قبول رحلة ثانية
-      if(d.activeRideId)
+      if(d.activeRideId != null)
         throw new Error('عندك رحلة أخرى. كمّلها أولاً');
 
-      // حجز الرحلة للسائق
       transaction.update(rideRef, {
         status: 'مقبولة',
         driverId: uid,
@@ -1703,7 +1699,6 @@ async function acceptRide(id){
         driverPhone: d.phone
       });
 
-      // تسجيل الرحلة النشيطة عند السائق
       transaction.update(driverRef, {
         activeRideId: id
       });
@@ -1711,13 +1706,11 @@ async function acceptRide(id){
     });
 
     alert('تم قبول الرحلة بنجاح');
-
     renderDriver();
 
   } catch(error) {
 
     console.error('Accept Ride Error:', error);
-
     alert('تعذر قبول الرحلة: ' + error.message);
   }
 }
