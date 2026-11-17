@@ -1685,41 +1685,70 @@ async function toggleDriverOnline(){
   }
 }
 
+
 async function acceptRide(id){
 
-  if(!driver || !online || !auth.currentUser)
+  if(!driver || !online || !auth.currentUser){
     return alert('لازم تكون متصل');
+  }
 
   try {
-   console.log('DRIVER:', driver);
-console.log('AUTH UID:', auth.currentUser?.uid);
-    const ref = db.collection('rides').doc(id);
-    const driverRef = db.collection('drivers').doc(auth.currentUser.uid);
+    const uid = auth.currentUser.uid;
+    const rideRef = db.collection('rides').doc(id);
+    const driverRef = db.collection('drivers').doc(uid);
 
     await db.runTransaction(async (transaction) => {
-      const doc = await transaction.get(ref);
+
+      // قراءة الرحلة وحساب السائق قبل أي تعديل
+      const rideDoc = await transaction.get(rideRef);
       const driverDoc = await transaction.get(driverRef);
-      if(!doc.exists) throw new Error('الطلب غير موجود');
-      if(!driverDoc.exists || driverDoc.data().active !== true) throw new Error('حساب السائق غير مفعّل');
-      const r = doc.data();
-      if(r.status !== 'جديد' || r.driverId) throw new Error('الطلب ما عادش متاح لسائق آخر');
-      if(driverDoc.data().activeRideId) throw new Error('عندك رحلة نشيطة بالفعل');
-      transaction.update(ref, {
-        status: 'مقبولة', driverId: auth.currentUser.uid,
-        driverName: driverDoc.data().name || driver.name,
-        driverPhone: driverDoc.data().phone || driver.phone
+
+      if(!rideDoc.exists){
+        throw new Error('الطلب غير موجود');
+      }
+
+      if(!driverDoc.exists){
+        throw new Error('حساب السائق غير موجود');
+      }
+
+      const rideData = rideDoc.data();
+      const driverData = driverDoc.data();
+
+      if(rideData.status !== 'جديد' || rideData.driverId != null){
+        throw new Error('الطلب ما عادش متاح لسائق آخر');
+      }
+
+      if(driverData.active !== true){
+        throw new Error('حساب السائق غير مفعّل');
+      }
+
+      if(driverData.activeRideId != null){
+        throw new Error('عندك رحلة أخرى مازالت نشيطة');
+      }
+
+      // ربط الرحلة بالسائق
+      transaction.update(rideRef, {
+        status: 'مقبولة',
+        driverId: uid,
+        driverName: driverData.name,
+        driverPhone: driverData.phone
       });
-      transaction.update(driverRef, {activeRideId: id});
+
+      // ربط الرحلة بحساب السائق أيضاً
+      transaction.update(driverRef, {
+        activeRideId: id
+      });
     });
 
-    alert('تم قبول الرحلة بنجاح');
-    renderDriver();
+    alert('تم قبول الرحلة بنجاح 🏍️');
+    await renderDriver();
 
   } catch(error) {
     console.error('Accept Ride Error:', error);
     alert('تعذر قبول الرحلة: ' + error.message);
   }
 }
+
 
 async function startRide(id){
 
