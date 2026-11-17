@@ -770,7 +770,6 @@ function toggleTheme(){
  localStorage.setItem('taxiDark',document.body.classList.contains('dark')?'1':'0');
 }
 if(localStorage.getItem('taxiDark')==='1')document.body.classList.add('dark');
-const yearNode = document.getElementById('currentYear'); if(yearNode) yearNode.textContent = new Date().getFullYear();
 function toggleBooking(){
  $('bookingTime').classList.toggle('hide',$('bookingType').value!=='later');
 }
