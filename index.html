@@ -191,6 +191,29 @@ body.high-contrast button{outline:1px solid #000}
 #driverHistory .item{border-right:4px solid #16834a}
 @media(max-width:560px){.admin-ride-filters{display:block}.admin-ride-filters>*{width:100%}}
 
+body.site-ltr #home .role-tile{text-align:left}
+body.site-ltr #home .home-extra{text-align:left}
+
+/* لوحة مقسّمة إلى أقسام وبطاقات بدل الصفحة الطويلة */
+.dashboard-nav{background:linear-gradient(145deg,#10233f,#1b426a);color:#fff;border:0;}
+.dashboard-nav-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
+.dashboard-nav-head strong{font-size:18px}
+.dashboard-menu-toggle{width:auto;min-width:48px;background:#ffffff20;color:#fff;border:1px solid #ffffff35;margin:0;padding:9px 13px}
+.dashboard-tiles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.dashboard-tile{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;min-height:94px;margin:0;padding:13px 8px;background:#ffffff12;color:#fff;border:1px solid #ffffff30;border-radius:16px;text-align:center;white-space:normal}
+.dashboard-tile .tile-icon{font-size:25px;line-height:1.1}
+.dashboard-tile .tile-label{font-size:13px;line-height:1.4}
+.dashboard-tile:active,.dashboard-tile.active{background:#ff9417;border-color:#ffb85f;color:#10233f}
+.dashboard-section{scroll-margin-top:12px}
+.dashboard-section[hidden],.dashboard-tiles[hidden]{display:none!important}
+.dashboard-back{width:100%;margin:12px 0 0;background:#ffffff20;color:#fff;border:1px solid #ffffff35}
+.dashboard-section-title{display:flex;align-items:center;gap:9px;margin:0 0 14px;font-size:18px;color:#17395e}
+body.dark .dashboard-section-title{color:#ffd08a}
+#clientFeatures>.dashboard-trip-section{padding:0;background:transparent;border:0;box-shadow:none}
+#clientFeatures>.dashboard-trip-section>.card{margin:0 0 12px}
+@media(min-width:560px){.dashboard-tiles{grid-template-columns:repeat(3,minmax(0,1fr))}.dashboard-tile{min-height:104px}}
+@media(min-width:900px){.dashboard-tiles{grid-template-columns:repeat(4,minmax(0,1fr))}}
+
 </style>
 </head>
 <body>
@@ -200,6 +223,12 @@ body.high-contrast button{outline:1px solid #000}
 <button id="backToTop" class="back-to-top" type="button" aria-label="الرجوع إلى الأعلى" title="الرجوع إلى الأعلى">↑</button>
 
 <section class="hero" id="home">
+ <div class="language-bar" style="display:flex;justify-content:flex-end;align-items:center;gap:8px;max-width:1000px;width:100%;margin:0 auto 8px">
+  <label for="siteLanguage" style="color:#fff;font-weight:700">🌐 Language / اللغة</label>
+  <select id="siteLanguage" aria-label="اختيار اللغة" onchange="setSiteLanguage(this.value)" style="width:auto;min-width:145px;margin:0;padding:9px 12px">
+   <option value="ar">العربية</option><option value="fr">Français</option><option value="en">English</option>
+  </select>
+ </div>
  <div><div class="logo">TAXI <span class="orange">MOTO</span></div><div class="flag">🇹🇳</div></div>
  <div class="welcome">
   <div class="motor"></div>
@@ -333,18 +362,17 @@ body.high-contrast button{outline:1px solid #000}
 <button class="green" onclick="locateMe()">
   📍 استعمل موقعي الحالي GPS
 </button>
-   <input
-  id="destinationSearch"
-  type="text"
-  placeholder="اكتب اسم المكان أو العنوان..."
-  oninput="searchDestination(this.value)"
-  autocomplete="off"
->
-
-<div id="destinationSuggestions"></div>
+   <label for="startSearch">ابحث عن مكان الانطلاق</label>
+   <input id="startSearch" type="text" placeholder="مثال: شارع الحبيب بورقيبة، تونس..." oninput="searchStart(this.value)" autocomplete="off">
+   <div id="startSuggestions"></div>
+   <label for="destinationSearch">ابحث عن الوجهة</label>
+   <input id="destinationSearch" type="text" placeholder="اكتب اسم المكان أو العنوان..." oninput="searchDestination(this.value)" autocomplete="off">
+   <div id="destinationSuggestions"></div>
 </div>
 
    <div id="clientMap" class="map"></div>
+   <button class="blue" type="button" onclick="showAvailableDrivers()">🏍️ السائقون المتاحون الآن</button>
+   <div id="availableDriversInfo" class="info" aria-live="polite">اضغط لعرض السائقين المتاحين القريبين منك.</div>
    <div id="mapHelp" class="info">اضغط GPS أو اختار الانطلاق على الخريطة، وبعد اختار الوجهة.</div>
    <p>📍 الانطلاق: <b id="fromText">لم يتم الاختيار</b></p>
    <p>🏁 الوجهة: <b id="toText">لم يتم الاختيار</b></p>
@@ -434,6 +462,7 @@ body.high-contrast button{outline:1px solid #000}
    <button class="green" onclick="toggleDriverOnline()">متصل / غير متصل</button>
    <span id="driverOnline" class="info">غير متصل</span>
   </div>
+  <p class="muted">عند تفعيل التوفر، يطلب المتصفح إذن الموقع ويُحدّث موقعك أثناء استعمال صفحة السائق. أوقف التوفر لإيقاف المشاركة.</p>
   <div class="stats">
    <div class="stat">الرحلات المكتملة<b id="driverCount">0</b></div>
    <div class="stat">مداخيلي<b id="driverIncome">0 د.ت</b></div>
@@ -495,6 +524,20 @@ body.high-contrast button{outline:1px solid #000}
  </div>
 
  <div class="card"><h3 class="sectionTitle">🏍️ قائمة السائقين</h3><div id="driversList"></div></div>
+ <div class="card"><h3 class="sectionTitle">💰 الحسابات المالية وتسوية مستحقات السائقين</h3><p class="muted">الحساب يعتمد على الرحلات المكتملة. سجّل المبالغ التي سلّمها المسؤول للسائق، وسيظهر الباقي المستحق بعد كل تسوية.</p><div id="driverFinanceList">جاري حساب المداخيل...</div></div>
+
+ <div class="card" id="financePeriodCard">
+  <h3 class="sectionTitle">📊 التقرير المالي اليومي والشهري</h3>
+  <p class="muted">التقرير يحسب الرحلات المكتملة حسب تاريخ إتمام الرحلة، وليس تاريخ إنشاء الطلب.</p>
+  <div class="row">
+   <button class="blue" type="button" onclick="setFinancePeriod('today')">اليوم</button>
+   <button class="blue" type="button" onclick="setFinancePeriod('month')">هذا الشهر</button>
+  </div>
+  <label for="financeFrom">من تاريخ</label><input id="financeFrom" type="date">
+  <label for="financeTo">إلى تاريخ</label><input id="financeTo" type="date">
+  <div class="row"><button class="primary" type="button" onclick="renderFinancePeriod()">عرض التقرير</button><button class="blue" type="button" onclick="exportFinancePeriodCSV()">تصدير التقرير CSV</button></div>
+  <div id="financePeriodSummary" aria-live="polite">اختار الفترة لعرض التقرير.</div>
+ </div>
 
  <div class="card">
   <h3 class="sectionTitle">📋 جميع الطلبات</h3>
@@ -686,9 +729,14 @@ async function loadPublicSettings(){
 let driver=null,online=false,map=null,from=null,to=null,m1=null,m2=null,line=null,route=null;
 let driverRidesCache=[];
 let adminRidesCache=[];
+let adminDriversCache=[];
+let adminSettlementsCache=[];
+let adminSettlementsLoaded=false;
 let clientUser=null;
 let stopDriverNewRides = null;
 let orderRideInProgress = false;
+let driverGeoWatchId = null, lastDriverLocationWrite = 0;
+let availableDriverLayer = null, stopAvailableDrivers = null, availableDriverMarkers = [];
 
 function openPage(id){
   document.querySelectorAll('.page,.hero').forEach(x => { x.style.display = 'none'; });
@@ -1059,6 +1107,7 @@ function initMap(){
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
     attribution:'© OpenStreetMap'
   }).addTo(map);
+  availableDriverLayer = L.layerGroup().addTo(map);
 map.on('click',e=>{
   const p = [e.latlng.lat,e.latlng.lng];
 
@@ -1189,6 +1238,7 @@ function locateMe(){
     const p = [pos.coords.latitude,pos.coords.longitude];
 
     setStartPoint(p);
+    if($('startSearch')) $('startSearch').value = 'موقعي الحالي';
     map.setView(p,16);
 
     $('mapHelp').innerText = 'تم تحديد موقعك. اختار الوجهة.';
@@ -1200,62 +1250,49 @@ function locateMe(){
   });
 }
 
-async function searchDestination(value){
-  const box = $('destinationSuggestions');
+async function searchPlaces(value, target){
+  const box = $(target === 'start' ? 'startSuggestions' : 'destinationSuggestions');
   box.innerHTML = '';
-
   if(value.trim().length < 3) return;
-
-  box.innerText = 'جاري البحث عن العنوان...';
-
+  box.textContent = 'جاري البحث عن المكان...';
   try{
-    const url = 'https://nominatim.openstreetmap.org/search?format=json&limit=5&q='
-      + encodeURIComponent(value + ', Tunisia');
-
-    const response = await fetch(url);
-
+    const url = 'https://nominatim.openstreetmap.org/search?format=json&limit=5&countrycodes=tn&q='
+      + encodeURIComponent(value);
+    const response = await fetch(url, {headers:{'Accept-Language':'ar,fr'}});
     if(!response.ok) throw new Error('Search failed');
-
     const results = await response.json();
     box.innerHTML = '';
-
-    if(!results.length){
-      box.innerText = 'لم يتم العثور على المكان. جرّب اسماً آخر.';
-      return;
-    }
-
+    if(!results.length){ box.textContent = 'لم يتم العثور على المكان. جرّب اسماً آخر.'; return; }
     results.forEach(place=>{
       const button = document.createElement('button');
-
       button.type = 'button';
       button.className = 'blue';
       button.style.display = 'block';
       button.style.width = '100%';
       button.textContent = place.display_name;
-
       button.onclick = ()=>{
-        if(!from){
-          $('mapHelp').innerText = 'حدد الانطلاق أولاً باستعمال GPS أو الخريطة.';
-          return;
-        }
-
-        const p = [Number(place.lat),Number(place.lon)];
-
-        $('destinationSearch').value = place.display_name;
+        const point = [Number(place.lat), Number(place.lon)];
         box.innerHTML = '';
-
-        setDestinationPoint(p,place.display_name);
-        map.fitBounds([from,p],{padding:[30,30]});
+        if(target === 'start'){
+          $('startSearch').value = place.display_name;
+          setStartPoint(point);
+          if(map) map.setView(point,16);
+        }else{
+          if(!from){ $('mapHelp').textContent = 'حدد مكان الانطلاق أولاً باستعمال GPS أو البحث.'; return; }
+          $('destinationSearch').value = place.display_name;
+          setDestinationPoint(point, place.display_name);
+          if(map) map.fitBounds([from,point],{padding:[30,30]});
+        }
       };
-
       box.appendChild(button);
     });
-
   }catch(error){
-    console.error('Destination Search Error:',error);
-    box.innerText = 'تعذّر البحث. تحقق من الإنترنت وحاول مجدداً.';
+    console.error('Place Search Error:',error);
+    box.textContent = 'تعذّر البحث. تحقق من الإنترنت وحاول مجدداً.';
   }
 }
+function searchStart(value){ return searchPlaces(value,'start'); }
+function searchDestination(value){ return searchPlaces(value,'destination'); }
 
 async function calculateRoute(){
   if(!from || !to) return;
@@ -1497,6 +1534,7 @@ async function loginDriver(){
 
     driver = {id:uid,...data};
     online = !!driver.online;
+    if(online) startDriverLocationWatch();
 
     $('driverError').innerText = '';
 
@@ -1525,7 +1563,7 @@ console.log('RENDER DRIVER START');
 // استقبال الطلبات الجديدة مباشرة من Firebase
 
 if(!stopDriverNewRides){
-  stopDriverNewRides = db.collection('wrinkles').doc(id)
+  stopDriverNewRides = db.collection('wrinkles')
     .where('status','==','جديد')
     .where('driverId','==',null)
     .onSnapshot(snapshot => {
@@ -1549,12 +1587,12 @@ if(!stopDriverNewRides){
 
     const [newSnapshot, mineSnapshot] = await Promise.all([
 
-      db.collection('wrinkles').doc(id)
+      db.collection('wrinkles')
   .where('status', '==', 'جديد')
   .where('driverId', '==', null)
   .get(),
 
-      db.collection('rides').doc(id)
+      db.collection('wrinkles')
         .where('driverId', '==', uid)
         .get()
 
@@ -1633,8 +1671,8 @@ if(!stopDriverNewRides){
 
           ${r.status === 'السائق وصل'
             ? `<label>أدخل رمز الرحلة PIN</label>
-               <input id="pin-${r.id}" inputmode="numeric" placeholder="رمز الرحلة">
-               <button class="primary" onclick="startRide('${r.id}')">تأكيد بداية الرحلة</button>`
+               <input id="pin-${r.id}" type="password" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" autocomplete="off" placeholder="4 أرقام">
+               <button class="primary" type="button" onclick="startRide('${r.id}')">تأكيد بداية الرحلة</button>`
             : ''}
 
         ${r.status === 'جارية'
@@ -1655,31 +1693,120 @@ if(!stopDriverNewRides){
 
 /* تشغيل وإيقاف اتصال السائق */
 
-async function toggleDriverOnline(){
-
-  if(!driver || !auth.currentUser){
-    return alert('لازم تسجل الدخول كـ سائق');
-  }
-
-  const newStatus = !online;
-
-  try {
-    await db.collection('drivers')
-      .doc(auth.currentUser.uid)
-      .update({
-        online: newStatus
-      });
-
-    online = newStatus;
-    driver.online = newStatus;
-
-    renderDriver();
-
-  } catch(error) {
-    console.error('Online Error:', error);
-    alert('تعذر تغيير حالة الاتصال: ' + error.message);
-  }
+// الموقع الدقيق يبقى خاصاً في driverLocations؛ الخريطة العامة تستعمل إحداثيات تقريبية فقط.
+function publicApproxLocation(lat,lng){
+  return {lat:Number(Number(lat).toFixed(2)),lng:Number(Number(lng).toFixed(2))};
 }
+async function setDriverPublicAvailability(uid, available, lat=null, lng=null){
+  const data={uid,available:!!available,updatedAt:firebase.firestore.FieldValue.serverTimestamp()};
+  // لا نكتبش إحداثيات وهمية (0,0) وقت اللي نبدّل حالة التوفر من غير GPS.
+  if(lat !== null && lat !== undefined && lng !== null && lng !== undefined &&
+     Number.isFinite(Number(lat)) && Number.isFinite(Number(lng)) &&
+     Number(lat) >= -90 && Number(lat) <= 90 && Number(lng) >= -180 && Number(lng) <= 180){
+    const approx=publicApproxLocation(lat,lng);
+    data.lat=approx.lat;
+    data.lng=approx.lng;
+  }
+  await db.collection('driverPublicLocations').doc(uid).set(data,{merge:true});
+}
+
+async function toggleDriverOnline(){
+  if(!driver || !auth.currentUser) return alert('لازم تسجل الدخول كسائق');
+  const newStatus = !online;
+  if(newStatus && !navigator.geolocation) return alert('GPS غير متوفر في هذا المتصفح');
+  try{
+    const uid = auth.currentUser.uid;
+    const driverRef = db.collection('drivers').doc(uid);
+    const locationRef = db.collection('driverLocations').doc(uid);
+    if(!newStatus){
+      if(driverGeoWatchId !== null){ navigator.geolocation.clearWatch(driverGeoWatchId); driverGeoWatchId=null; }
+      await db.runTransaction(async tx=>{
+        tx.update(driverRef,{online:false,available:false});
+        tx.set(locationRef,{uid,available:false,updatedAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});
+      });
+      await setDriverPublicAvailability(uid,false);
+      online=false; driver.online=false; driver.available=false;
+      $('driverOnline').innerText='⚪ غير متاح للعمل';
+      renderDriver();
+      return;
+    }
+    // نطلب إذن GPS قبل إعلان السائق متاحاً.
+    navigator.geolocation.getCurrentPosition(async pos=>{
+      try{
+        const loc={lat:pos.coords.latitude,lng:pos.coords.longitude};
+        await db.runTransaction(async tx=>{
+          const d=await tx.get(driverRef);
+          if(!d.exists || d.data().active!==true) throw new Error('حساب السائق غير مفعّل');
+          if(d.data().activeRideId) throw new Error('أكمل الرحلة النشيطة أولاً');
+          tx.update(driverRef,{online:true,available:true});
+          tx.set(locationRef,{uid,lat:loc.lat,lng:loc.lng,available:true,updatedAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});
+        });
+        await setDriverPublicAvailability(uid,true,loc.lat,loc.lng);
+        online=true; driver.online=true; driver.available=true;
+        startDriverLocationWatch();
+        $('driverOnline').innerText='🟢 متاح للعمل — GPS يعمل';
+        renderDriver();
+      }catch(err){ alert('تعذر تفعيل التوفر: '+err.message); }
+    },err=>alert('ما نجّمش ناخذ موقعك. فعّل GPS واسمح للموقع: '+err.message),{enableHighAccuracy:true,timeout:15000,maximumAge:5000});
+  }catch(error){ console.error('Online Error:',error); alert('تعذر تغيير حالة الاتصال: '+error.message); }
+}
+
+function startDriverLocationWatch(){
+  if(!driver || !auth.currentUser || !navigator.geolocation || driverGeoWatchId!==null) return;
+  const uid=auth.currentUser.uid;
+  driverGeoWatchId=navigator.geolocation.watchPosition(async pos=>{
+    if(!online || !auth.currentUser || auth.currentUser.uid!==uid) return;
+    const now=Date.now();
+    if(now-lastDriverLocationWrite<12000) return;
+    lastDriverLocationWrite=now;
+    try{
+      await db.collection('driverLocations').doc(uid).set({
+        uid,lat:pos.coords.latitude,lng:pos.coords.longitude,
+        available:!driver?.activeRideId,updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+      },{merge:true});
+      await setDriverPublicAvailability(uid,!driver?.activeRideId,pos.coords.latitude,pos.coords.longitude);
+    }catch(err){ console.warn('Driver location update failed:',err); }
+  },err=>console.warn('Driver GPS watch:',err),{enableHighAccuracy:true,maximumAge:10000,timeout:20000});
+}
+
+function stopDriverLocationWatch(){
+  if(driverGeoWatchId!==null && navigator.geolocation){navigator.geolocation.clearWatch(driverGeoWatchId);driverGeoWatchId=null;}
+}
+
+function distanceKm(a,b){
+  const rad=x=>x*Math.PI/180, dLat=rad(b[0]-a[0]),dLng=rad(b[1]-a[1]);
+  const h=Math.sin(dLat/2)**2+Math.cos(rad(a[0]))*Math.cos(rad(b[0]))*Math.sin(dLng/2)**2;
+  return 6371*2*Math.atan2(Math.sqrt(h),Math.sqrt(1-h));
+}
+
+function showAvailableDrivers(){
+  if(!clientUser || !auth.currentUser) return alert('سجّل الدخول كحريف أولاً');
+  if(!map) initMap();
+  if(!map) return;
+  if(!navigator.geolocation) return alert('GPS غير متوفر');
+  $('availableDriversInfo').innerText='جاري تحديد موقعك والبحث عن السائقين المتاحين...';
+  navigator.geolocation.getCurrentPosition(pos=>{
+    const here=[pos.coords.latitude,pos.coords.longitude];
+    map.setView(here,14);
+    if(!availableDriverLayer) availableDriverLayer=L.layerGroup().addTo(map);
+    if(stopAvailableDrivers){stopAvailableDrivers();stopAvailableDrivers=null;}
+    stopAvailableDrivers=db.collection('driverPublicLocations').where('available','==',true).onSnapshot(snapshot=>{
+      availableDriverLayer.clearLayers(); availableDriverMarkers=[];
+      const drivers=snapshot.docs.map(doc=>({id:doc.id,...doc.data()}))
+        .filter(d=>Number.isFinite(Number(d.lat))&&Number.isFinite(Number(d.lng)) && d.updatedAt && Date.now()-d.updatedAt.toMillis()<120000)
+        .map(d=>({...d,distance:distanceKm(here,[Number(d.lat),Number(d.lng)])}))
+        .filter(d=>d.distance<=20).sort((a,b)=>a.distance-b.distance);
+      drivers.forEach((d,i)=>{
+        const marker=L.marker([Number(d.lat),Number(d.lng)]).bindPopup('سائق متاح قريب منك<br>المسافة التقريبية: '+d.distance.toFixed(1)+' كم');
+        marker.addTo(availableDriverLayer); availableDriverMarkers.push(marker);
+      });
+      $('availableDriversInfo').innerText=drivers.length
+        ? 'لقينا '+drivers.length+' سائق متاح في نطاق 20 كم. المسافة تقريبية وقد تتغير حسب الطريق.'
+        : 'ما لقيناش سائقين متاحين في نطاق 20 كم حالياً.';
+    },err=>{$('availableDriversInfo').innerText='تعذر تحميل السائقين: '+err.message;});
+  },err=>{$('availableDriversInfo').innerText='اسمح باستعمال GPS باش نحدّد السائقين القريبين: '+err.message;},{enableHighAccuracy:true,timeout:15000});
+}
+
 
 
 async function acceptRide(id){
@@ -1690,7 +1817,7 @@ async function acceptRide(id){
 
   try {
     const uid = auth.currentUser.uid;
-    const rideRef = db.collection('wrinkles').doc(id).doc(id);
+    const rideRef = db.collection('wrinkles').doc(id);
     const driverRef = db.collection('drivers').doc(uid);
 
     await db.runTransaction(async (transaction) => {
@@ -1732,10 +1859,14 @@ async function acceptRide(id){
 
       // ربط الرحلة بحساب السائق أيضاً
       transaction.update(driverRef, {
-        activeRideId: id
+        activeRideId: id, available:false
       });
+      transaction.set(db.collection('driverLocations').doc(uid),{available:false,updatedAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});
+      transaction.set(db.collection('driverPublicLocations').doc(uid),{uid,available:false,updatedAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});
     });
 
+    driver.activeRideId=id; driver.available=false;
+    await db.collection('driverLocations').doc(uid).set({uid,available:false,updatedAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});
     alert('تم قبول الرحلة بنجاح 🏍️');
     await renderDriver();
  
@@ -1757,24 +1888,30 @@ async function startRide(id){
   }
 
   try {
-    const ref = db.collection('wrinkles').doc(id).doc(id);
+    const uid = auth.currentUser.uid;
+    const ref = db.collection('wrinkles').doc(id);
+    const driverRef = db.collection('drivers').doc(uid);
 
     await db.runTransaction(async (transaction) => {
-
+      // نقرؤوا الرحلة وحساب السائق قبل أي كتابة داخل المعاملة.
       const doc = await transaction.get(ref);
+      const driverDoc = await transaction.get(driverRef);
 
-      if(!doc.exists)
-        throw new Error('الرحلة غير موجودة');
+      if(!doc.exists) throw new Error('الرحلة غير موجودة');
+      if(!driverDoc.exists) throw new Error('حساب السائق غير موجود');
 
       const r = doc.data();
+      const driverData = driverDoc.data();
 
-      if(
-        r.driverId !== auth.currentUser.uid ||
-        r.status !== 'السائق وصل'
-      ){
-        throw new Error('ما تنجمش تبدأ الرحلة');
+      if(r.driverId !== uid || r.status !== 'السائق وصل'){
+        throw new Error('ما تنجمش تبدأ الرحلة: تأكد من حالة الرحلة');
       }
-
+      if(driverData.active !== true){
+        throw new Error('حساب السائق غير مفعّل');
+      }
+      if(driverData.activeRideId !== id){
+        throw new Error('الرحلة موش مربوطة بحسابك الحالي');
+      }
       if(String(r.pin) !== pin){
         throw new Error('رمز PIN غير صحيح');
       }
@@ -1783,8 +1920,10 @@ async function startRide(id){
         status: 'جارية',
         startedAt: firebase.firestore.FieldValue.serverTimestamp()
       });
-
     });
+
+    const pinInput = $('pin-' + id);
+    if(pinInput) pinInput.value = '';
 
     alert('تم تأكيد بداية الرحلة');
     renderDriver();
@@ -1800,23 +1939,38 @@ async function finishRide(id){
   if(!driver || !auth.currentUser) return;
 
   try {
-    const ref = db.collection('wrinkles').doc(id).doc(id);
-    const driverRef = db.collection('drivers').doc(auth.currentUser.uid);
+    const uid = auth.currentUser.uid;
+    const ref = db.collection('wrinkles').doc(id);
+    const driverRef = db.collection('drivers').doc(uid);
 
     await db.runTransaction(async (transaction) => {
+      // Firestore requires every transaction read to happen before its first write.
       const doc = await transaction.get(ref);
-      const driverDoc = await transaction.get(driverRef);
       if(!doc.exists) throw new Error('الرحلة غير موجودة');
       const r = doc.data();
-      if(r.driverId !== auth.currentUser.uid || r.status !== 'جارية') throw new Error('ما تنجمش تكمل الرحلة');
-      if(!driverDoc.exists || driverDoc.data().activeRideId !== id) throw new Error('الرحلة غير مرتبطة بحسابك');
+      const driverDoc = await transaction.get(driverRef);
+      const actualCustomerRef = db.collection('customers').doc(String(r.clientId || ''));
+      const customerDoc = r.clientId ? await transaction.get(actualCustomerRef) : null;
+      const driverData = driverDoc.exists ? driverDoc.data() : {};
+      if(r.driverId !== uid || r.status !== 'جارية') throw new Error('ما تنجمش تكمل الرحلة');
+      if(!driverDoc.exists || driverData.activeRideId !== id) throw new Error('الرحلة غير مرتبطة بحسابك');
+
       transaction.update(ref, {
         status: 'مكتملة',
         completedAt: firebase.firestore.FieldValue.serverTimestamp()
       });
-      transaction.update(driverRef, {activeRideId: null});
+      transaction.update(driverRef, {activeRideId: null, available: false});
+      if(customerDoc && customerDoc.exists && customerDoc.data().activeRideId === id){
+        transaction.update(actualCustomerRef, {activeRideId: null});
+      }
+      transaction.set(db.collection('driverLocations').doc(uid),{
+        uid, available:false,
+        updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+      },{merge:true});
+      transaction.set(db.collection('driverPublicLocations').doc(uid),{uid,available:false,updatedAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});
     });
 
+    driver.activeRideId=null; driver.available=false;
     alert('تم إكمال الرحلة بنجاح');
     renderDriver();
 
@@ -1829,6 +1983,192 @@ async function finishRide(id){
 /* لوحة المسؤول */
 
 
+
+// حسابات السائقين وتسوية المستحقات؛ كل عملية خلاص تحفظ كسجل مستقل ولا تغيّر الرحلات الأصلية.
+function driverSettlementTotal(driverId){
+  return adminSettlementsCache.filter(x => x.driverId === driverId)
+    .reduce((sum,x) => sum + Number(x.amount || 0), 0);
+}
+function renderDriverFinance(driverDocs){
+  const box = document.getElementById('driverFinanceList');
+  if(!box) return;
+  const drivers = (driverDocs || []).map(doc => ({id:doc.id, ...doc.data()}));
+  adminDriversCache = drivers;
+  if(!adminSettlementsLoaded){
+    box.innerHTML = '<p class="muted">تعذّر تأكيد سجلّ التسويات. راجع صلاحيات Firestore قبل تسجيل أي خلاص.</p>';
+    return;
+  }
+  if(!drivers.length){ box.textContent = 'ما فماش سائقين لعرض حساباتهم.'; return; }
+  box.innerHTML = drivers.map(d => {
+    const rides = adminRidesCache.filter(r => r.status === 'مكتملة' && r.driverId === d.id);
+    const gross = rides.reduce((sum,r) => sum + Number(r.fare || 0), 0);
+    const commission = rides.reduce((sum,r) => sum + Number(r.commission || 0), 0);
+    const net = Math.max(0, gross - commission);
+    const paid = driverSettlementTotal(d.id);
+    const remaining = Math.max(0, net - paid);
+    const details = rides.slice().sort((a,b) => (financeRideDate(b)?.getTime() || 0) - (financeRideDate(a)?.getTime() || 0))
+      .map(r => `<div class="item">رحلة ${esc(r.id)} — ${esc(r.from || '')} ← ${esc(r.to || '')}<br>السعر: ${Number(r.fare || 0).toFixed(2)} د.ت | العمولة: ${Number(r.commission || 0).toFixed(2)} د.ت | صافي السائق: ${(Number(r.fare || 0)-Number(r.commission || 0)).toFixed(2)} د.ت</div>`).join('');
+    const settlements = adminSettlementsCache.filter(x=>x.driverId===d.id)
+      .sort((a,b)=>(b.createdAt?.toMillis?.()||0)-(a.createdAt?.toMillis?.()||0))
+      .map(x=>`<div class="item">خلاص: <b>${Number(x.amount||0).toFixed(2)} د.ت</b> — ${esc(x.note||'من غير ملاحظة')}<br><small>${esc(financeRideDate({createdAt:x.createdAt})?.toLocaleString('fr-TN')||'تاريخ غير متوفر')}</small></div>`).join('');
+    return `<div class="item"><b>${esc(d.name || 'سائق بدون اسم')}</b> — ${esc(d.phone || '')}<br>عدد الرحلات المكتملة: <b>${rides.length}</b><br>إجمالي أسعار الرحلات: <b>${gross.toFixed(2)} د.ت</b><br>عمولة التطبيق: <b>${commission.toFixed(2)} د.ت</b><br>صافي مستحقات السائق: <b>${net.toFixed(2)} د.ت</b><br>المبالغ المسلّمة للسائق: <b>${paid.toFixed(2)} د.ت</b><br><br>الباقي المستحق: <b>${remaining.toFixed(2)} د.ت</b><div class="row"><button class="green" type="button" onclick="recordDriverSettlement('${esc(d.id)}')" ${remaining<=0?'disabled':''}>تسجيل خلاص للسائق</button><button class="blue" type="button" onclick="exportDriverSettlementCSV('${esc(d.id)}')">تصدير كشف التسويات</button><button class="blue" type="button" onclick="printDriverStatement('${esc(d.id)}')">طباعة كشف الحساب PDF</button></div>${details ? `<details><summary>تفاصيل الرحلات</summary>${details}</details>` : '<p class="muted">لا توجد رحلات مكتملة لهذا السائق.</p>'}<details><summary>سجلّ عمليات الخلاص (${adminSettlementsCache.filter(x=>x.driverId===d.id).length})</summary>${settlements||'<p class="muted">ما تسجّل حتى خلاص.</p>'}</details></div>`;
+  }).join('');
+}
+async function loadAdminSettlements(){
+  adminSettlementsLoaded=false;
+  const snapshot=await db.collection('driverSettlements').get();
+  adminSettlementsCache=snapshot.docs.map(doc=>({id:doc.id,...doc.data()}));
+  adminSettlementsLoaded=true;
+}
+async function recordDriverSettlement(driverId){
+  if(!auth.currentUser || auth.currentUser.uid!=='n4eiE6M94aYkBCxDBTgcjerNAJU2') return alert('غير مسموح: يلزم حساب المسؤول');
+  if(!adminSettlementsLoaded) return alert('سجلّ التسويات غير متاح. راجع قواعد Firestore أولاً.');
+  const d=adminDriversCache.find(x=>x.id===driverId);
+  if(!d) return alert('السائق غير موجود. حدّث لوحة المسؤول.');
+  const rides=adminRidesCache.filter(r=>r.status==='مكتملة' && r.driverId===driverId);
+  const earned=Math.max(0,rides.reduce((sum,r)=>sum+Number(r.fare||0)-Number(r.commission||0),0));
+  const paid=driverSettlementTotal(driverId);
+  const remaining=Math.max(0,earned-paid);
+  if(remaining<=0) return alert('ما فماش مستحقات متبقية لهذا السائق.');
+  const raw=prompt(`الباقي المستحق للسائق ${d.name||''}: ${remaining.toFixed(2)} د.ت\nاكتب المبلغ اللي سلّمتو للسائق:`);
+  if(raw===null) return;
+  const amount=Number(String(raw).replace(',','.'));
+  if(!Number.isFinite(amount)||amount<=0) return alert('المبلغ غير صحيح.');
+  if(amount>remaining+0.0001) return alert(`المبلغ أكبر من الباقي المستحق (${remaining.toFixed(2)} د.ت).`);
+  const note=prompt('ملاحظة اختيارية لعملية الخلاص:')||'';
+  try{
+    await db.collection('driverSettlements').add({
+      driverId,driverName:d.name||'',driverPhone:d.phone||'',amount:Number(amount.toFixed(2)),
+      note:String(note).slice(0,300),createdAt:firebase.firestore.FieldValue.serverTimestamp(),
+      createdBy:auth.currentUser.uid,currency:'TND'
+    });
+    await loadAdminSettlements();
+    renderDriverFinance(adminDriversCache.map(d=>({id:d.id,data:()=>{const {id,...data}=d;return data;}})));
+    alert('تسجّل الخلاص بنجاح.');
+  }catch(error){
+    console.error('Driver settlement error:',error);
+    alert('ما نجّمش نسجّل الخلاص. تثبّت من قواعد Firestore: '+error.message);
+  }
+}
+function exportDriverSettlementCSV(driverId){
+  if(!auth.currentUser || auth.currentUser.uid!=='n4eiE6M94aYkBCxDBTgcjerNAJU2') return alert('غير مسموح: يلزم حساب المسؤول');
+  const d=adminDriversCache.find(x=>x.id===driverId); if(!d)return;
+  const rides=adminRidesCache.filter(r=>r.status==='مكتملة'&&r.driverId===driverId);
+  const settlements=adminSettlementsCache.filter(x=>x.driverId===driverId);
+  const rows=[['النوع','التاريخ','المرجع','المبلغ د.ت','ملاحظة']];
+  rides.forEach(r=>rows.push(['مستحقات رحلة',financeRideDate(r)?.toLocaleString('fr-TN')||'',r.id,(Number(r.fare||0)-Number(r.commission||0)).toFixed(2),'']));
+  settlements.forEach(x=>rows.push(['خلاص للسائق',financeRideDate({createdAt:x.createdAt})?.toLocaleString('fr-TN')||'',x.id,(-Number(x.amount||0)).toFixed(2),x.note||'']));
+  const csv='\uFEFF'+rows.map(row=>row.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(',')).join('\n');
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=`driver-ledger-${driverId}.csv`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+
+// كشف حساب مستقل للسائق؛ متاح للمسؤول فقط ويُطبع أو يُحفظ PDF من نافذة الطباعة.
+function printDriverStatement(driverId){
+  if(!auth.currentUser || auth.currentUser.uid !== 'n4eiE6M94aYkBCxDBTgcjerNAJU2')
+    return alert('غير مسموح: يلزم حساب المسؤول');
+  const d = adminDriversCache.find(x => x.id === driverId);
+  if(!d) return alert('لم يتم العثور على السائق. حدّث لوحة المسؤول وحاول مجدداً.');
+  const rides = adminRidesCache.filter(r => r.status === 'مكتملة' && r.driverId === driverId)
+    .slice().sort((a,b) => (financeRideDate(a)?.getTime() || 0) - (financeRideDate(b)?.getTime() || 0));
+  const gross = rides.reduce((sum,r) => sum + Number(r.fare || 0), 0);
+  const commission = rides.reduce((sum,r) => sum + Number(r.commission || 0), 0);
+  const net = Math.max(0, gross - commission);
+  const paid = driverSettlementTotal(driverId);
+  const remaining = Math.max(0, net - paid);
+  const driverPayments = adminSettlementsCache.filter(x=>x.driverId===driverId);
+  const popup = window.open('', '_blank', 'width=850,height=900');
+  if(!popup) return alert('اسمح بفتح النوافذ المنبثقة لطباعة كشف الحساب.');
+  const dateText = date => date ? date.toLocaleString('fr-TN') : '—';
+  const rows = rides.map((r,i) => {
+    const date = financeRideDate(r);
+    const fare = Number(r.fare || 0), fee = Number(r.commission || 0);
+    return `<tr><td>${i+1}</td><td>${esc(r.id)}</td><td>${esc(dateText(date))}</td><td>${esc(r.from || '—')}</td><td>${esc(r.to || '—')}</td><td>${fare.toFixed(2)}</td><td>${fee.toFixed(2)}</td><td>${(fare-fee).toFixed(2)}</td></tr>`;
+  }).join('');
+  popup.document.open();
+  popup.document.write(`<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>كشف حساب السائق - Taxi Moto Tunisia</title><style>
+    body{font-family:Arial,sans-serif;color:#172b45;margin:0;padding:24px;background:#f3f6fa}
+    main{max-width:1100px;margin:auto;background:#fff;padding:26px;border:1px solid #dce4ee;border-radius:14px}
+    h1{margin:0;color:#17395e} .muted{color:#64748b;margin:6px 0 20px}
+    .meta{display:flex;gap:24px;flex-wrap:wrap;padding:12px 0;border-bottom:1px solid #e5eaf0}
+    .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:18px 0}
+    .stat{border:1px solid #e1e8f0;border-radius:9px;padding:12px}.stat b{display:block;font-size:20px;margin-top:6px}
+    table{width:100%;border-collapse:collapse;font-size:12px;margin-top:18px}th,td{border:1px solid #dce4ee;padding:8px;text-align:right}th{background:#edf2f7}
+    .actions{margin:18px 0}button{padding:11px 18px;background:#17395e;color:white;border:0;border-radius:8px;font-size:15px}
+    @media(max-width:700px){main{padding:12px}table{font-size:10px}th,td{padding:5px}.stats{grid-template-columns:1fr}}
+    @media print{body{background:#fff;padding:0}main{border:0;border-radius:0;padding:0;max-width:none}.actions{display:none}table{font-size:9px;page-break-inside:auto}tr{page-break-inside:avoid}}
+  </style></head><body><main>
+    <h1>🏍️ Taxi Moto Tunisia</h1><div class="muted">كشف حساب السائق — تقرير الرحلات المكتملة</div>
+    <div class="meta"><span><b>السائق:</b> ${esc(d.name || 'بدون اسم')}</span><span><b>الهاتف:</b> ${esc(d.phone || '—')}</span><span><b>تاريخ التقرير:</b> ${esc(new Date().toLocaleString('fr-TN'))}</span></div>
+    <section class="stats"><div class="stat">عدد الرحلات المكتملة<b>${rides.length}</b></div><div class="stat">إجمالي أسعار الرحلات<b>${gross.toFixed(2)} د.ت</b></div><div class="stat">عمولة التطبيق<b>${commission.toFixed(2)} د.ت</b></div></section>
+    <div class="stats"><div class="stat">صافي مستحقات السائق<b>${net.toFixed(2)} د.ت</b></div><div class="stat">المبالغ المسلّمة<b>${paid.toFixed(2)} د.ت</b></div><div class="stat">الباقي المستحق<b>${remaining.toFixed(2)} د.ت</b></div></div>
+    <table><thead><tr><th>#</th><th>رقم الرحلة</th><th>تاريخ الإتمام</th><th>الانطلاق</th><th>الوجهة</th><th>السعر (د.ت)</th><th>العمولة (د.ت)</th><th>الصافي (د.ت)</th></tr></thead><tbody>${rows || '<tr><td colspan="8">لا توجد رحلات مكتملة لهذا السائق.</td></tr>'}</tbody></table>
+    <h3>سجلّ عمليات خلاص السائق</h3><table><thead><tr><th>التاريخ</th><th>المبلغ (د.ت)</th><th>ملاحظة</th></tr></thead><tbody>${driverPayments.map(x=>`<tr><td>${esc(dateText(financeRideDate({createdAt:x.createdAt})))}</td><td>${Number(x.amount||0).toFixed(2)}</td><td>${esc(x.note||'')}</td></tr>`).join('')||'<tr><td colspan="3">ما تسجّل حتى خلاص.</td></tr>'}</tbody></table>
+    <p class="muted">كشف معلوماتي مبني على الرحلات المكتملة وعمليات الخلاص المسجلة في النظام. الدفع للحريف نقداً عند الوصول حسب إعدادات الخدمة.</p>
+    <div class="actions"><button onclick="window.print()">طباعة / حفظ PDF</button></div>
+  </main>
+
+
+</body></html>`);
+  popup.document.close();
+}
+
+
+// تقارير مالية يومية/شهرية حسب completedAt، مع fallback إلى createdAt للرحلات القديمة.
+function financeRideDate(ride){
+  const value = ride.completedAt || ride.createdAt;
+  if(value && typeof value.toDate === 'function') return value.toDate();
+  if(value && typeof value.seconds === 'number') return new Date(value.seconds * 1000);
+  if(value instanceof Date) return value;
+  if(typeof value === 'string' || typeof value === 'number'){ const d = new Date(value); if(!Number.isNaN(d.getTime())) return d; }
+  return null;
+}
+function localDateInputValue(date){
+  const y=date.getFullYear(),m=String(date.getMonth()+1).padStart(2,'0'),d=String(date.getDate()).padStart(2,'0');
+  return `${y}-${m}-${d}`;
+}
+function setFinancePeriod(period){
+  const now=new Date(); let from,to;
+  if(period==='month'){ from=new Date(now.getFullYear(),now.getMonth(),1); to=new Date(now.getFullYear(),now.getMonth()+1,0); }
+  else { from=new Date(now.getFullYear(),now.getMonth(),now.getDate()); to=new Date(from); }
+  const a=document.getElementById('financeFrom'),b=document.getElementById('financeTo');
+  if(a)a.value=localDateInputValue(from); if(b)b.value=localDateInputValue(to);
+  renderFinancePeriod();
+}
+function getFinancePeriodRides(){
+  const fromValue=document.getElementById('financeFrom')?.value||'';
+  const toValue=document.getElementById('financeTo')?.value||'';
+  if(!fromValue || !toValue) throw new Error('اختار تاريخ البداية والنهاية.');
+  const from=new Date(fromValue+'T00:00:00');
+  const to=new Date(toValue+'T23:59:59.999');
+  if(Number.isNaN(from.getTime()) || Number.isNaN(to.getTime()) || from>to) throw new Error('الفترة الزمنية غير صحيحة.');
+  return adminRidesCache.filter(r=>{
+    if(r.status!=='مكتملة') return false;
+    const date=financeRideDate(r); return date && date>=from && date<=to;
+  });
+}
+function renderFinancePeriod(){
+  const box=document.getElementById('financePeriodSummary'); if(!box)return;
+  try{
+    const rides=getFinancePeriodRides();
+    const gross=rides.reduce((sum,r)=>sum+Number(r.fare||0),0);
+    const commission=rides.reduce((sum,r)=>sum+Number(r.commission||0),0);
+    const driverNet=rides.reduce((sum,r)=>sum+(Number(r.fare||0)-Number(r.commission||0)),0);
+    const grouped={};
+    rides.forEach(r=>{const key=r.driverId||'unassigned'; if(!grouped[key])grouped[key]={name:r.driverName||'سائق غير محدد',count:0,gross:0,commission:0,net:0}; const g=grouped[key];g.count++;g.gross+=Number(r.fare||0);g.commission+=Number(r.commission||0);g.net+=Number(r.fare||0)-Number(r.commission||0);});
+    const driverRows=Object.values(grouped).sort((a,b)=>b.gross-a.gross).map(d=>`<div class="item"><b>${esc(d.name)}</b><br>الرحلات: ${d.count} | المداخيل: ${d.gross.toFixed(2)} د.ت<br>عمولة التطبيق: ${d.commission.toFixed(2)} د.ت | صافي السائق: ${d.net.toFixed(2)} د.ت</div>`).join('');
+    box.innerHTML=`<div class="stats"><div class="stat">الرحلات المكتملة<b>${rides.length}</b></div><div class="stat">إجمالي المبالغ<b>${gross.toFixed(2)} د.ت</b></div><div class="stat">دخل التطبيق (عمولة)<b>${commission.toFixed(2)} د.ت</b></div><div class="stat">صافي السائقين<b>${driverNet.toFixed(2)} د.ت</b></div></div><h4>تفصيل حسب السائق</h4>${driverRows||'<p class="muted">ما فماش رحلات مكتملة في الفترة المختارة.</p>'}`;
+  }catch(error){box.textContent=error.message;}
+}
+function exportFinancePeriodCSV(){
+  if(!auth.currentUser || auth.currentUser.uid!=='n4eiE6M94aYkBCxDBTgcjerNAJU2') return alert('غير مسموح: يلزم حساب المسؤول');
+  try{
+    const rides=getFinancePeriodRides();
+    const rows=[['رقم الرحلة','تاريخ الإتمام','السائق','معرّف السائق','السعر الجملي د.ت','عمولة التطبيق د.ت','صافي السائق د.ت']];
+    rides.forEach(r=>{const d=financeRideDate(r);rows.push([r.id,d?d.toLocaleString('fr-TN'):'',r.driverName||'',r.driverId||'',Number(r.fare||0).toFixed(2),Number(r.commission||0).toFixed(2),(Number(r.fare||0)-Number(r.commission||0)).toFixed(2)]);});
+    const csv='\uFEFF'+rows.map(row=>row.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(',')).join('\n');
+    const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=`taxi-moto-finance-${document.getElementById('financeFrom').value}-${document.getElementById('financeTo').value}.csv`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
+  }catch(error){alert(error.message);}
+}
 
 // بحث وتصفية الرحلات في لوحة المسؤول.
 function filterAdminRides(){
@@ -1864,7 +2204,8 @@ async function printRideReceipt(rideId){
   if(!auth.currentUser) return alert('سجّل الدخول أولاً');
   const popup = window.open('', '_blank', 'width=720,height=820');
   if(!popup) return alert('اسمح بفتح النوافذ المنبثقة لطباعة الوصل.');
-  popup.document.write('<!doctype html><html lang="ar" dir="rtl"><meta charset="utf-8"><title>وصل الرحلة</title><body style="font-family:Arial;padding:24px">جاري تجهيز الوصل...</body></html>');
+  popup.document.write(`<!doctype html><html lang="ar" dir="rtl"><meta charset="utf-8"><title>وصل الرحلة</title><body style="font-family:Arial;padding:24px">جاري تجهيز الوصل...
+</body></html>`);
   try{
     const doc = await db.collection('wrinkles').doc(rideId).get();
     if(!doc.exists) throw new Error('الرحلة غير موجودة');
@@ -1903,7 +2244,8 @@ async function printRideReceipt(rideId){
       <div class="line total"><span>المبلغ الجملي</span><b>${fare.toFixed(2)} د.ت</b></div>
       <p class="foot">هذا وصل معلوماتي مولّد من Taxi Moto Tunisia، وليس فاتورة جبائية. الدفع المسجل: ${safe(r.payment || 'نقداً')}.</p>
       <button onclick="window.print()">طباعة / حفظ PDF</button>
-    </main></body></html>`);
+    </main>
+</body></html>`);
     popup.document.close();
   }catch(error){
     popup.close();
@@ -2041,7 +2383,7 @@ async function renderAdmin(){
 
   // تحميل الرحلات
   try {
-    const ridesSnapshot = await db.collection('wrinkles').doc(id).get();
+    const ridesSnapshot = await db.collection('wrinkles').get();
    console.log('ADMIN UID:', firebase.auth().currentUser?.uid);
 
     const rs = ridesSnapshot.docs.map(doc => ({
@@ -2050,6 +2392,8 @@ async function renderAdmin(){
     }));
 
     adminRidesCache = rs.slice();
+    if(!$('financeFrom')?.value || !$('financeTo')?.value) setFinancePeriod('month');
+    else renderFinancePeriod();
 
     const done = rs.filter(r => r.status === 'مكتملة');
 
@@ -2068,6 +2412,15 @@ async function renderAdmin(){
     console.error('Load Rides Error:', error);
     $('adminRequests').innerText =
       'خطأ في تحميل الطلبات: ' + error.message;
+  }
+
+  // تحميل سجلّ خلاصات السائقين قبل احتساب الرصيد المتبقي
+  try {
+    await loadAdminSettlements();
+  }catch(error){
+    adminSettlementsLoaded=false;
+    adminSettlementsCache=[];
+    console.error('Load Driver Settlements Error:',error);
   }
 
   // تحميل السائقين
@@ -2100,11 +2453,13 @@ async function renderAdmin(){
             </div>
           `;
         }).join('');
+    renderDriverFinance(snapshot.docs);
 
   } catch(error) {
     console.error('Load Drivers Error:', error);
     $('driversList').innerText =
       'خطأ في تحميل السائقين: ' + error.message;
+    if($('driverFinanceList')) $('driverFinanceList').innerText = 'تعذر تحميل حسابات السائقين.';
   }
 
   // تحميل مطالب السائقين
@@ -2156,6 +2511,8 @@ async function deleteDriver(id) {
 
   try {
     await db.collection('drivers').doc(id).delete();
+    await db.collection('driverLocations').doc(id).delete().catch(()=>{});
+    await db.collection('driverPublicLocations').doc(id).delete().catch(()=>{});
 
     alert('تم حذف السائق بنجاح');
 
@@ -2173,8 +2530,13 @@ async function toggleDriver(id, currentStatus) {
 
   try {
     await db.collection('drivers').doc(id).update({
-      active: !currentStatus
+      active: !currentStatus,
+      ...(currentStatus ? {online:false,available:false} : {})
     });
+    if(currentStatus){
+      await db.collection('driverLocations').doc(id).set({available:false,updatedAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});
+      await db.collection('driverPublicLocations').doc(id).set({uid:id,available:false,updatedAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});
+    }
 
     alert(currentStatus ? 'تم إيقاف السائق' : 'تم تفعيل السائق');
 
@@ -2253,7 +2615,7 @@ async function exportCSV(){
     return alert('غير مسموح: يلزم حساب المسؤول');
   }
   try{
-    const snapshot = await db.collection('wrinkles').doc(id).get();
+    const snapshot = await db.collection('wrinkles').get();
     const rides = snapshot.docs.map(doc => ({id:doc.id, ...doc.data()}));
     const rows = [['ID','Client','Phone','From','To','Distance','Fare','Commission','Status','Driver'],
       ...rides.map(r => [r.id,r.name,r.phone,r.from,r.to,r.distance,r.fare,r.commission,r.status,r.driverName])];
@@ -2303,7 +2665,7 @@ async function backupData(){
   if(!auth.currentUser || auth.currentUser.uid !== 'n4eiE6M94aYkBCxDBTgcjerNAJU2'){
     return alert('غير مسموح: يلزم حساب المسؤول');
   }
-  const collections = ['rides','drivers','driverApplications','complaints','clients','appConfig'];
+  const collections = ['wrinkles','drivers','driverApplications','complaints','customers','appConfig','driverLocations','driverPublicLocations','driverSettlements'];
   try{
     const backup = {format:'taxi-moto-firestore-backup-v1', createdAt:new Date().toISOString(), collections:{}};
     for(const name of collections){
@@ -2342,7 +2704,9 @@ async function restoreData(e){
     if(!backup || backup.format !== 'taxi-moto-firestore-backup-v1' || !backup.collections){
       throw new Error('صيغة النسخة غير مدعومة. استعمل نسخة Firestore الاحتياطية.');
     }
-    const allowed = ['rides','drivers','driverApplications','complaints','clients','appConfig'];
+    const allowed = ['wrinkles','drivers','driverApplications','complaints','customers','appConfig','driverLocations','driverPublicLocations'];
+    if(!backup.collections.wrinkles && backup.collections.rides) backup.collections.wrinkles=backup.collections.rides;
+    if(!backup.collections.customers && backup.collections.clients) backup.collections.customers=backup.collections.clients;
     for(const name of allowed){
       const docs = backup.collections[name] || [];
       for(let i=0;i<docs.length;i+=400){
@@ -2353,6 +2717,18 @@ async function restoreData(e){
         });
         await batch.commit();
       }
+    }
+    // Restore settlement history additively: never overwrite or delete an existing payment record.
+    const settlementDocs = backup.collections.driverSettlements || [];
+    for(const item of settlementDocs){
+      if(!item.id || !item.data) continue;
+      const ref = db.collection('driverSettlements').doc(String(item.id));
+      await db.runTransaction(async tx => {
+        const existing = await tx.get(ref);
+        if(!existing.exists){
+          tx.set(ref, decodeBackupValue(item.data));
+        }
+      });
     }
     alert('تم استرجاع بيانات Firebase بنجاح.');
     await renderAdmin();
@@ -2393,7 +2769,7 @@ async function renderClient(){
   box.innerText = 'جاري تحميل طلباتك...';
 
   try{
-    const snapshot = await db.collection('wrinkles').doc(id)
+    const snapshot = await db.collection('wrinkles')
       .where('clientId', '==', auth.currentUser.uid)
       .get();
 
@@ -2451,7 +2827,7 @@ async function markArrived(id){
   if(!driver || !auth.currentUser) return;
 
   try{
-    const ref = db.collection('wrinkles').doc(id).doc(id);
+    const ref = db.collection('wrinkles').doc(id);
 
     await db.runTransaction(async transaction => {
       const doc = await transaction.get(ref);
@@ -2557,7 +2933,7 @@ function startClientRideNotifications(uid){
   stopRideNotifications();
   let firstSnapshot = true;
   const previous = new Map();
-  stopRideStatusNotifications = db.collection('wrinkles').doc(id)
+  stopRideStatusNotifications = db.collection('wrinkles')
     .where('clientId','==',uid)
     .onSnapshot(snapshot => {
       snapshot.docChanges().forEach(change => {
@@ -2594,7 +2970,7 @@ function startDriverRideNotifications(uid){
   stopRideNotifications();
   let firstSnapshot = true;
   const previous = new Map();
-  stopRideStatusNotifications = db.collection('rides').doc(id)
+  stopRideStatusNotifications = db.collection('wrinkles')
     .where('driverId','==',uid)
     .onSnapshot(snapshot => {
       snapshot.docChanges().forEach(change => {
@@ -2699,7 +3075,8 @@ auth.onAuthStateChanged(async user => {
         return;
       }
       driver = {uid: user.uid, id: user.uid, ...data};
-      online = data.online === true;
+      online = data.online === true && !data.activeRideId;
+      if(online) startDriverLocationWatch();
       openPage('driverPanel');
       startDriverRideNotifications(user.uid);
       console.log('تم استرجاع حساب السائق بنجاح');
@@ -2898,6 +3275,13 @@ const clientRef = db.collection('customers').doc(auth.currentUser.uid);
 }
  async function driverLogout() {
   try {
+    stopDriverLocationWatch();
+    if(auth.currentUser){
+      const uid=auth.currentUser.uid;
+      await db.collection('drivers').doc(uid).set({online:false,available:false},{merge:true});
+      await db.collection('driverLocations').doc(uid).set({uid,available:false,updatedAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});
+      await setDriverPublicAvailability(uid,false);
+    }
     await firebase.auth().signOut();
     alert('تم تسجيل الخروج بنجاح');
     location.reload();
@@ -2927,22 +3311,270 @@ const clientRef = db.collection('customers').doc(auth.currentUser.uid);
 <div id="rideNoticeHost" aria-live="polite" aria-atomic="false"></div>
 <button type="button" id="enableRideNotifications" class="notification-settings">🔔 تفعيل إشعارات الهاتف</button>
 <script>
-window.openPage = function(id) {
-  // نخفي الصفحات الكل
-  document.querySelectorAll('.page, .hero').forEach(function(el) {
-    el.style.display = 'none';
-  });
-
-  // نظهر الصفحة المطلوبة
-  const page = document.getElementById(id);
-
-  if (!page) {
-    alert('الصفحة غير موجودة: ' + id);
-    return;
-  }
-
-  page.style.display = 'block';
+/* Langue de l'accueil — première étape de la localisation de l'interface.
+   Les formulaires métier restent en arabe jusqu'à leur traduction complète. */
+const HOME_LANG = {
+ ar:{tag:'🌐 اللغة',title:'تنقّل بالموتور، أسرع وأسهل',lead:'تنقّل سريع وسهل وين ما تحب',welcome:'مرحبا بيك في تونس 🇹🇳',client:'فضاء الحريف',clientSub:'إنشاء حساب، طلب رحلة ومتابعتها',driver:'فضاء السائق',driverSub:'دخول السائق أو إرسال طلب انضمام',admin:'Mostati فضاء المسؤول',adminSub:'دخول الإدارة المعتمدة فقط',night:'الوضع الليلي',nightSub:'تغيير مظهر التطبيق',contact:'📞 اتصل بالمسؤول WhatsApp',extraTitle:'تنقّل أسهل، بخطوات واضحة',extraLead:'اختار نوع حسابك وابدأ استعمال الخدمة بكل سهولة.',feature1:'حدّد وجهتك',feature1Sub:'اختار نقطة الانطلاق والوجهة على الخريطة.',feature2:'شوف تفاصيل الرحلة',feature2Sub:'راجع المسافة والسعر قبل إرسال الطلب.',feature3:'تابع طلبك',feature3Sub:'تابع حالة الطلب من فضاء الحريف.',how:'كيفاش تبدأ؟',step1:'1. اختار فضاءك',step2:'2. سجّل الدخول',step3:'3. استعمل الخدمة',back:'رجوع للرئيسية'},
+ fr:{tag:'🌐 Langue',title:'Déplacez-vous à moto, plus vite et plus facilement',lead:'Un déplacement simple et rapide, où vous le souhaitez',welcome:'Bienvenue en Tunisie 🇹🇳',client:'Espace client',clientSub:'Créer un compte, commander et suivre un trajet',driver:'Espace chauffeur',driverSub:'Connexion chauffeur ou demande d’inscription',admin:'Espace administrateur',adminSub:'Accès réservé à l’administration autorisée',night:'Mode nuit',nightSub:'Modifier l’apparence du site',contact:'📞 Contacter l’administrateur sur WhatsApp',extraTitle:'Un trajet plus simple, en quelques étapes',extraLead:'Choisissez votre espace et commencez à utiliser le service.',feature1:'Choisissez votre destination',feature1Sub:'Sélectionnez le départ et la destination sur la carte.',feature2:'Consultez le trajet',feature2Sub:'Vérifiez la distance et le prix avant l’envoi.',feature3:'Suivez votre demande',feature3Sub:'Suivez son état depuis votre espace client.',how:'Comment commencer ?',step1:'1. Choisissez votre espace',step2:'2. Connectez-vous',step3:'3. Utilisez le service',back:'Retour à l’accueil'},
+ en:{tag:'🌐 Language',title:'Ride by motorcycle, faster and easier',lead:'Quick and easy rides wherever you need to go',welcome:'Welcome to Tunisia 🇹🇳',client:'Customer area',clientSub:'Create an account, request and track a ride',driver:'Driver area',driverSub:'Driver login or submit an application',admin:'Administrator area',adminSub:'Authorized administration access only',night:'Dark mode',nightSub:'Change the site appearance',contact:'📞 Contact the administrator on WhatsApp',extraTitle:'An easier ride in a few clear steps',extraLead:'Choose your account type and start using the service.',feature1:'Choose your destination',feature1Sub:'Select pickup and destination on the map.',feature2:'Review your ride',feature2Sub:'Check distance and price before submitting.',feature3:'Track your request',feature3Sub:'Follow the request status in your customer area.',how:'How to get started?',step1:'1. Choose your area',step2:'2. Sign in',step3:'3. Use the service',back:'Back to home'}
 };
+function setSiteLanguage(lang){
+ const d=HOME_LANG[lang]||HOME_LANG.ar;
+ const put=(selector,value)=>{const el=document.querySelector(selector);if(el&&value!==undefined)el.textContent=value};
+ document.documentElement.lang=lang;
+ document.documentElement.dir=lang==='ar'?'rtl':'ltr';
+ document.body.classList.toggle('site-ltr',lang!=='ar');
+ localStorage.setItem('taxiSiteLanguage',lang);
+ put('#home .language-bar label',d.tag); put('#home .welcome h1',d.title);
+ const lead=document.querySelector('#home .welcome p');if(lead)lead.textContent=d.lead;
+ const welcome=document.querySelectorAll('#home .welcome p')[1];if(welcome)welcome.textContent=d.welcome;
+ const tiles=document.querySelectorAll('#home .role-tile');
+ if(tiles[0]){tiles[0].querySelector('b').textContent=d.client;tiles[0].querySelector('span span').textContent=d.clientSub;}
+ if(tiles[1]){tiles[1].querySelector('b').textContent=d.driver;tiles[1].querySelector('span span').textContent=d.driverSub;}
+ if(tiles[2]){tiles[2].querySelector('b').textContent=d.admin;tiles[2].querySelector('span span').textContent=d.adminSub;}
+ if(tiles[3]){tiles[3].querySelector('b').textContent=d.night;tiles[3].querySelector('span span').textContent=d.nightSub;}
+ put('#home .role-grid .whatsapp',d.contact);
+ put('#home .home-extra-head h2',d.extraTitle);put('#home .home-extra-head p',d.extraLead);
+ const features=document.querySelectorAll('#home .feature-card');
+ [[d.feature1,d.feature1Sub],[d.feature2,d.feature2Sub],[d.feature3,d.feature3Sub]].forEach((v,i)=>{if(features[i]){features[i].querySelector('b').textContent=v[0];features[i].querySelector('small').textContent=v[1];}});
+ put('#home .how-strip b',d.how);const steps=document.querySelectorAll('#home .how-strip span');[d.step1,d.step2,d.step3].forEach((v,i)=>{if(steps[i])steps[i].textContent=v;});
+ document.querySelectorAll('.page>.back').forEach(b=>b.textContent=d.back);
+}
+document.addEventListener('DOMContentLoaded',()=>{const sel=document.getElementById('siteLanguage');const saved=localStorage.getItem('taxiSiteLanguage')||'ar';if(sel){sel.value=saved;setSiteLanguage(saved);}});
+</script>
+
+<script>
+/* Traduction progressive des espaces client, chauffeur et administration. */
+const APP_LANG = {
+ fr: {
+ 'فضاء الحريف':'Espace client','فضاء السائق':'Espace chauffeur','فضاء المسؤول':'Espace administrateur',
+ 'رجوع للرئيسية':"Retour à l’accueil",'خروج':'Déconnexion','لوحة السائق':'Tableau de bord chauffeur',
+ 'متصل / غير متصل':'En ligne / hors ligne','غير متصل':'Hors ligne','الرحلات المكتملة':'Trajets terminés',
+ 'مداخيلي':'Mes revenus','🔔 الطلبات الجديدة':'🔔 Nouvelles demandes','🛵 رحلاتي النشيطة':'🛵 Mes trajets actifs',
+ '🧾 سجل الرحلات المكتملة':'🧾 Historique des trajets terminés','تصدير سجل رحلاتي CSV':'Exporter mon historique CSV',
+ 'تسجيل دخول المسؤول':'Connexion administrateur','دخول الإدارة':'Se connecter','البريد الإلكتروني':'Adresse e-mail',
+ 'كلمة السر':'Mot de passe','اسم السائق':'Nom du chauffeur','رقم هاتف السائق':'Téléphone du chauffeur',
+ 'إضافة سائق':'Ajouter un chauffeur','➕ إضافة سائق':'➕ Ajouter un chauffeur','حفظ الأسعار':'Enregistrer les tarifs',
+ '⚙️ إعدادات الأسعار':'⚙️ Paramètres des tarifs','سعر الكيلومتر بالدينار':'Prix par kilomètre (TND)',
+ 'الحد الأدنى للسفرة':'Tarif minimum du trajet','العمولة %':'Commission %','🏍️ قائمة السائقين':'🏍️ Liste des chauffeurs',
+ '📋 جميع الطلبات':'📋 Toutes les demandes','تصدير CSV':'Exporter CSV','نسخة احتياطية JSON':'Sauvegarde JSON',
+ 'استرجاع نسخة':'Restaurer une sauvegarde','كل الحالات':'Tous les statuts','جديدة':'Nouvelle',
+ 'مقبولة':'Acceptée','السائق وصل':'Chauffeur arrivé','جارية':'En cours','مكتملة':'Terminée','ملغاة':'Annulée',
+ '📝 الشكاوى':'📝 Réclamations','📨 إعلان للحرفاء':'📨 Annonce aux clients','اكتب الإعلان':'Écrire l’annonce',
+ 'نشر الإعلان':'Publier l’annonce','طلبات انضمام السائقين':'Candidatures des chauffeurs',
+ 'حذف البيانات المحلية من هذا الجهاز':'Effacer les données locales de cet appareil',
+ 'إنشاء حساب':'Créer un compte','تسجيل الدخول':'Se connecter','الاسم الكامل':'Nom complet',
+ 'رقم الهاتف':'Numéro de téléphone','تأكيد كلمة السر':'Confirmer le mot de passe',
+ 'ملاحظات اختيارية':'Notes facultatives','اسمك':'Votre nom','رقم هاتفك':'Votre téléphone',
+ 'نقطة الانطلاق':'Point de départ','الوجهة':'Destination','اطلب رحلة':'Commander un trajet',
+ 'تحديد موقعي':'Me localiser','ابحث عن مكان الانطلاق':'Rechercher le départ',
+ 'ابحث عن الوجهة':'Rechercher la destination','السعر التقديري':'Prix estimé','المسافة':'Distance','المدة':'Durée'
+ },
+ en: {
+ 'فضاء الحريف':'Customer area','فضاء السائق':'Driver area','فضاء المسؤول':'Administrator area',
+ 'رجوع للرئيسية':'Back to home','خروج':'Log out','لوحة السائق':'Driver dashboard',
+ 'متصل / غير متصل':'Online / offline','غير متصل':'Offline','الرحلات المكتملة':'Completed rides',
+ 'مداخيلي':'My earnings','🔔 الطلبات الجديدة':'🔔 New requests','🛵 رحلاتي النشيطة':'🛵 My active rides',
+ '🧾 سجل الرحلات المكتملة':'🧾 Completed ride history','تصدير سجل رحلاتي CSV':'Export my history CSV',
+ 'تسجيل دخول المسؤول':'Administrator login','دخول الإدارة':'Admin sign in','البريد الإلكتروني':'Email address',
+ 'كلمة السر':'Password','اسم السائق':'Driver name','رقم هاتف السائق':'Driver phone',
+ 'إضافة سائق':'Add driver','➕ إضافة سائق':'➕ Add driver','حفظ الأسعار':'Save pricing',
+ '⚙️ إعدادات الأسعار':'⚙️ Pricing settings','سعر الكيلومتر بالدينار':'Price per kilometre (TND)',
+ 'الحد الأدنى للسفرة':'Minimum fare','العمولة %':'Commission %','🏍️ قائمة السائقين':'🏍️ Drivers list',
+ '📋 جميع الطلبات':'📋 All requests','تصدير CSV':'Export CSV','نسخة احتياطية JSON':'JSON backup',
+ 'استرجاع نسخة':'Restore backup','كل الحالات':'All statuses','جديدة':'New',
+ 'مقبولة':'Accepted','السائق وصل':'Driver arrived','جارية':'In progress','مكتملة':'Completed','ملغاة':'Cancelled',
+ '📝 الشكاوى':'📝 Complaints','📨 إعلان للحرفاء':'📨 Customer announcement','اكتب الإعلان':'Write announcement',
+ 'نشر الإعلان':'Publish announcement','طلبات انضمام السائقين':'Driver applications',
+ 'حذف البيانات المحلية من هذا الجهاز':'Clear local data on this device',
+ 'إنشاء حساب':'Create account','تسجيل الدخول':'Sign in','الاسم الكامل':'Full name',
+ 'رقم الهاتف':'Phone number','تأكيد كلمة السر':'Confirm password',
+ 'ملاحظات اختيارية':'Optional notes','اسمك':'Your name','رقم هاتفك':'Your phone',
+ 'نقطة الانطلاق':'Pickup location','الوجهة':'Destination','اطلب رحلة':'Request a ride',
+ 'تحديد موقعي':'Use my location','ابحث عن مكان الانطلاق':'Search pickup location',
+ 'ابحث عن الوجهة':'Search destination','السعر التقديري':'Estimated price','المسافة':'Distance','المدة':'Duration'
+ }
+};
+(function enableAppTranslations(){
+ const originalText=new WeakMap(), originalAttr=new WeakMap();
+ const attrs=['placeholder','title','aria-label'];
+ function apply(){
+  const lang=localStorage.getItem('taxiSiteLanguage')||'ar';
+  if(lang==='ar'){
+   document.querySelectorAll('.page *').forEach(el=>{
+    if(originalAttr.has(el)) for(const a of attrs){const v=originalAttr.get(el)[a];if(v!==undefined)el.setAttribute(a,v)}
+   });
+   const walker=document.createTreeWalker(document.querySelectorAll('.page').length?document.querySelector('.page').parentNode:document.body,NodeFilter.SHOW_TEXT);
+   let n;while(n=walker.nextNode()){if(originalText.has(n))n.nodeValue=originalText.get(n)}
+   return;
+  }
+  const dict=APP_LANG[lang]||APP_LANG.fr;
+  document.querySelectorAll('.page').forEach(page=>{
+   const walker=document.createTreeWalker(page,NodeFilter.SHOW_TEXT);let n;
+   while(n=walker.nextNode()){
+    const raw=originalText.has(n)?originalText.get(n):n.nodeValue;
+    if(!originalText.has(n))originalText.set(n,raw);
+    const key=raw.trim();if(dict[key]){const translated=raw.replace(key,dict[key]);if(n.nodeValue!==translated)n.nodeValue=translated;}
+   }
+   page.querySelectorAll('*').forEach(el=>{
+    if(!originalAttr.has(el)){const saved={};attrs.forEach(a=>{if(el.hasAttribute(a))saved[a]=el.getAttribute(a)});originalAttr.set(el,saved)}
+    for(const a of attrs){const raw=originalAttr.get(el)[a];if(raw&&dict[raw])el.setAttribute(a,dict[raw]);}
+   });
+  });
+ }
+ window.applyAppLanguage=apply;
+ document.addEventListener('DOMContentLoaded',apply);
+ const observer=new MutationObserver(()=>apply());
+ observer.observe(document.body,{childList:true,subtree:true,characterData:true});
+})();
+</script>
+
+<script>
+/* Traduction des messages fréquents et des contenus générés après le chargement. */
+const DYNAMIC_LANG = {
+ fr: {
+ 'تم قبول الرحلة بنجاح 🏍️':'Trajet accepté avec succès 🏍️','تم تأكيد الوصول':'Arrivée confirmée',
+ 'تم تأكيد بداية الرحلة':'Début du trajet confirmé','تم إكمال الرحلة بنجاح':'Trajet terminé avec succès',
+ 'تم إلغاء الطلب':'Demande annulée','شكراً على تقييمك!':'Merci pour votre évaluation !',
+ 'الرحلة غير موجودة':'Trajet introuvable','ما تنجمش تكمل الرحلة':'Vous ne pouvez pas terminer ce trajet',
+ 'الرحلة غير مرتبطة بحسابك':'Ce trajet n’est pas associé à votre compte',
+ 'لازم تكون متصل':'Vous devez être en ligne','لازم تسجل الدخول كسائق':'Connectez-vous avec un compte chauffeur',
+ 'سجّل الدخول أولاً':'Veuillez vous connecter d’abord','سجّل الدخول كحريف أولاً':'Connectez-vous avec un compte client',
+ 'اختار الانطلاق والوجهة واستنى حساب السعر':'Choisissez le départ et la destination, puis attendez le calcul du prix',
+ 'تم حفظ إعدادات الأسعار':'Paramètres tarifaires enregistrés','تم قبول السائق وتفعيل حسابه بنجاح':'Chauffeur accepté et compte activé',
+ 'تم إيقاف السائق':'Chauffeur désactivé','تم تفعيل السائق':'Chauffeur activé',
+ 'السائق وصل':'Chauffeur arrivé','مقبولة':'Acceptée','جارية':'En cours','مكتملة':'Terminée','ملغاة':'Annulée','جديدة':'Nouvelle'
+ },
+ en: {
+ 'تم قبول الرحلة بنجاح 🏍️':'Ride accepted successfully 🏍️','تم تأكيد الوصول':'Arrival confirmed',
+ 'تم تأكيد بداية الرحلة':'Ride start confirmed','تم إكمال الرحلة بنجاح':'Ride completed successfully',
+ 'تم إلغاء الطلب':'Request cancelled','شكراً على تقييمك!':'Thank you for your rating!',
+ 'الرحلة غير موجودة':'Ride not found','ما تنجمش تكمل الرحلة':'You cannot complete this ride',
+ 'الرحلة غير مرتبطة بحسابك':'This ride is not linked to your account',
+ 'لازم تكون متصل':'You must be online','لازم تسجل الدخول كسائق':'Sign in with a driver account',
+ 'سجّل الدخول أولاً':'Please sign in first','سجّل الدخول كحريف أولاً':'Sign in with a customer account',
+ 'اختار الانطلاق والوجهة واستنى حساب السعر':'Choose pickup and destination, then wait for the fare calculation',
+ 'تم حفظ إعدادات الأسعار':'Pricing settings saved','تم قبول السائق وتفعيل حسابه بنجاح':'Driver approved and account activated',
+ 'تم إيقاف السائق':'Driver deactivated','تم تفعيل السائق':'Driver activated',
+ 'السائق وصل':'Driver arrived','مقبولة':'Accepted','جارية':'In progress','مكتملة':'Completed','ملغاة':'Cancelled','جديدة':'New'
+ }
+};
+(function(){
+ const nativeAlert=window.alert.bind(window);
+ window.alert=function(message){
+  const lang=localStorage.getItem('taxiSiteLanguage')||'ar';
+  const dict=DYNAMIC_LANG[lang];
+  if(dict && typeof message==='string'){
+   let translated=message;
+   if(dict[message]) translated=dict[message];
+   else for(const [ar,value] of Object.entries(dict)){
+    if(translated.includes(ar)) translated=translated.replaceAll(ar,value);
+   }
+   return nativeAlert(translated);
+  }
+  return nativeAlert(message);
+ };
+ const originalSet=window.setSiteLanguage;
+ if(typeof originalSet==='function'){
+  window.setSiteLanguage=function(lang){originalSet(lang);if(typeof window.applyAppLanguage==='function')window.applyAppLanguage();};
+ }
+ document.addEventListener('DOMContentLoaded',()=>{if(typeof window.applyAppLanguage==='function')window.applyAppLanguage();});
+})();
+</script>
+<script>
+/* واجهة تنقّل مقسّمة للمسؤول والسائق والحريف؛ لا تغيّر بيانات Firebase أو وظائف الرحلات. */
+(function(){
+  function makeNav(host, pinned, sections, heading){
+    if(!host || host.querySelector(':scope > .dashboard-nav')) return;
+    const nav=document.createElement('div');
+    nav.className='card dashboard-nav';
+    const head=document.createElement('div'); head.className='dashboard-nav-head';
+    const title=document.createElement('strong'); title.textContent=heading;
+    const toggle=document.createElement('button'); toggle.type='button'; toggle.className='dashboard-menu-toggle'; toggle.setAttribute('aria-expanded','true'); toggle.setAttribute('aria-label','فتح أو إغلاق قائمة الأقسام'); toggle.textContent='☰';
+    head.append(title,toggle);
+    const tiles=document.createElement('div'); tiles.className='dashboard-tiles';
+    const back=document.createElement('button'); back.type='button'; back.className='dashboard-back'; back.textContent='↩ الرجوع إلى الأقسام'; back.hidden=true;
+    sections.forEach((item,index)=>{
+      const tile=document.createElement('button'); tile.type='button'; tile.className='dashboard-tile';
+      tile.innerHTML='<span class="tile-icon" aria-hidden="true"></span><span class="tile-label"></span>';
+      tile.querySelector('.tile-icon').textContent=item.icon;
+      tile.querySelector('.tile-label').textContent=item.label;
+      tile.addEventListener('click',()=>{
+        sections.forEach(x=>{x.element.hidden=x!==item;});
+        tiles.hidden=true; back.hidden=false; toggle.setAttribute('aria-expanded','false');
+        tiles.querySelectorAll('.dashboard-tile').forEach(b=>b.classList.remove('active'));
+        tile.classList.add('active');
+        item.element.scrollIntoView({behavior:'smooth',block:'start'});
+      });
+      tiles.appendChild(tile);
+    });
+    toggle.addEventListener('click',()=>{
+      tiles.hidden=!tiles.hidden;
+      toggle.setAttribute('aria-expanded',String(!tiles.hidden));
+    });
+    back.addEventListener('click',()=>{
+      sections.forEach(x=>x.element.hidden=true);
+      tiles.hidden=false; back.hidden=true;
+      tiles.querySelectorAll('.dashboard-tile').forEach(b=>b.classList.remove('active'));
+      toggle.setAttribute('aria-expanded','true');
+      nav.scrollIntoView({behavior:'smooth',block:'start'});
+    });
+    nav.append(head,tiles,back);
+    if(pinned && pinned.parentNode===host) pinned.insertAdjacentElement('afterend',nav); else host.prepend(nav);
+    sections.forEach(x=>{x.element.classList.add('dashboard-section');x.element.hidden=true;});
+  }
+  function init(){
+    /* الحريف: نجمع واجهة طلب الرحلة (الخريطة والحقول) في قسم واحد. */
+    const client=document.getElementById('clientFeatures');
+    if(client && !client.dataset.dashboardReady){
+      client.dataset.dashboardReady='1';
+      const children=Array.from(client.children);
+      const announcement=document.getElementById('clientAnnouncementCard');
+      const trip= document.createElement('div'); trip.className='dashboard-trip-section'; trip.id='clientTripSection';
+      /* اجمع بطاقة طلب الرحلة والخريطة فقط؛ لا تضمّ الطلبات والمفضلة والشكاوى داخلها،
+         وإلا ستبقى الأقسام الأخرى مخفية داخل حاوية مخفية عند اختيارها. */
+      const tripNode=children[1];
+      if(tripNode){tripNode.parentNode.insertBefore(trip,tripNode);trip.appendChild(tripNode);}
+      const requests=document.getElementById('clientRequests')?.closest('.card');
+      const favorites=document.getElementById('favorites')?.closest('.card');
+      const complaints=document.getElementById('complaintResult')?.closest('.card');
+      makeNav(client,announcement,[
+        {icon:'🏍️',label:'طلب رحلة والخريطة',element:trip},
+        {icon:'⭐',label:'طلباتي وتقييماتي',element:requests},
+        {icon:'📌',label:'الأماكن المفضلة',element:favorites},
+        {icon:'📝',label:'شكوى أو مساعدة',element:complaints}
+      ].filter(x=>x.element),'فضاء الحريف — اختار الخدمة');
+    }
+    const driver=document.getElementById('driverPanel');
+    if(driver && !driver.dataset.dashboardReady){
+      driver.dataset.dashboardReady='1';
+      const cards=Array.from(driver.querySelectorAll(':scope > .card'));
+      makeNav(driver,cards[0],[
+        {icon:'🔔',label:'الطلبات الجديدة',element:cards[1]},
+        {icon:'🛵',label:'رحلاتي النشيطة',element:cards[2]},
+        {icon:'🧾',label:'سجل الرحلات المكتملة',element:cards[3]}
+      ].filter(x=>x.element),'فضاء السائق — اختار القسم');
+    }
+    const admin=document.getElementById('adminPanel');
+    if(admin && !admin.dataset.dashboardReady){
+      admin.dataset.dashboardReady='1';
+      const cards=Array.from(admin.querySelectorAll(':scope > .card'));
+      makeNav(admin,cards[0],[
+        {icon:'⚙️',label:'إعدادات الأسعار والعمولة',element:cards[1]},
+        {icon:'➕',label:'إضافة سائق',element:cards[2]},
+        {icon:'🏍️',label:'قائمة السائقين',element:cards[3]},
+        {icon:'💰',label:'الحسابات المالية والتسويات',element:cards[4]},
+        {icon:'📊',label:'التقرير المالي',element:document.getElementById('financePeriodCard')},
+        {icon:'📋',label:'جميع الطلبات والنسخ الاحتياطي',element:cards[6]},
+        {icon:'📝',label:'الشكاوى',element:cards[7]},
+        {icon:'📨',label:'الإعلانات للحرفاء',element:cards[8]},
+        {icon:'📩',label:'طلبات انضمام السائقين',element:cards[9]},
+        {icon:'🧹',label:'إعدادات البيانات المحلية',element:cards[10]}
+      ].filter(x=>x.element),'لوحة المسؤول — اختار القسم');
+    }
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',init); else init();
+})();
 </script>
 </body>
 </html>
