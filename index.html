@@ -644,13 +644,15 @@ async function registerClient(){
 
     const user = result.user;
 
-    await db.collection('clients').doc(user.uid).set({
-      uid: user.uid,
-      name: name,
-      phone: phone,
-      email: email,
-      createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
+await db.collection('clients').doc(user.uid).set({
+  uid: user.uid,
+  name: name,
+  phone: phone,
+  email: email,
+  activeRideId: null,
+  createdAt: firebase.firestore.FieldValue.serverTimestamp()
+});
+
 
     clientUser = {
       uid: user.uid,
