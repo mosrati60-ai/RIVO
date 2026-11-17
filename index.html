@@ -78,8 +78,12 @@ body.dark input,body.dark select,body.dark textarea{background:#203650;color:whi
   <p>مرحبا بيك في تونس 🇹🇳</p>
  </div>
  <div class="buttons">
-  <button class="clientBtn" onclick="openPage('client')">👤 فضاء الحريف</button>
-  <button class="driverBtn" onclick="openPage('driverLogin')">🏍️ فضاء السائق</button>
+  <button class="clientBtn" onclick="openPage('client')">
+  👤 <span data-i18n="client">فضاء الحريف</span>
+</button>
+  <button class="driverBtn" onclick="openPage('driver')">
+  🏍️ <span data-i18n="driver">فضاء السائق</span>
+</button>
   <button class="adminBtn" onclick="openPage('adminLogin')">🔐 Mosrati المسؤول</button>
   <button class="adminBtn" onclick="toggleTheme()">🌙 الوضع الليلي</button>
   <button class="whatsapp" onclick="contactAdmin()">📞 اتصل بالمسؤول WhatsApp</button>
@@ -127,10 +131,9 @@ body.dark input,body.dark select,body.dark textarea{background:#203650;color:whi
   <input id="clientLoginPass"
          placeholder="كلمة السر"
          type="password">
-
-  <button class="primary" onclick="loginClient()">
+<button class="primary" onclick="loginClient()" data-i18n="login">
     دخول
-  </button>
+</button>
 
   <button class="whatsapp" onclick="forgotClientPassword()">
     نسيت كلمة السر؟
