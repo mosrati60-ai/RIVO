@@ -555,6 +555,15 @@ body.high-contrast button{outline:1px solid #000}
 const yearNode = document.getElementById('currentYear');
 if (yearNode) yearNode.textContent = new Date().getFullYear();
 
+// Fallback global navigation: keep home buttons usable even if a later script fails to load.
+window.openPage = window.openPage || function(id){
+  document.querySelectorAll('.page, .hero').forEach(function(el){ el.style.display = 'none'; });
+  var page = document.getElementById(id);
+  if(!page){ console.error('Page not found:', id); return; }
+  page.style.display = 'block';
+  window.scrollTo(0, 0);
+};
+
 // Show script/runtime failures instead of leaving login buttons apparently unresponsive.
 window.addEventListener('error', function (event) {
   console.error('Application error:', event.message, event.filename, event.lineno);
@@ -727,6 +736,7 @@ function openPage(id){
   }
   window.scrollTo(0,0);
 }
+window.openPage = openPage;
 
 function goHome(){
   document.querySelectorAll('.page').forEach(x => x.style.display='none');
@@ -770,7 +780,6 @@ function toggleTheme(){
  localStorage.setItem('taxiDark',document.body.classList.contains('dark')?'1':'0');
 }
 if(localStorage.getItem('taxiDark')==='1')document.body.classList.add('dark');
-const yearNode = document.getElementById('currentYear'); if(yearNode) yearNode.textContent = new Date().getFullYear();
 function toggleBooking(){
  $('bookingTime').classList.toggle('hide',$('bookingType').value!=='later');
 }
@@ -867,7 +876,7 @@ async function registerClient(){
 
     const user = result.user;
 
-    await db.collection('clients').doc(user.uid).set({
+    await db.collection('customers').doc(user.uid).set({
       uid: user.uid,
       name: name,
       phone: phone,
@@ -917,8 +926,13 @@ async function loginClient(){
 
     const user = result.user;
 
-    const doc = await db.collection('clients')
-      .doc(user.uid).get();
+const ref = db.collection('customers').doc(user.uid);
+const doc = await ref.get();
+
+console.log('Firebase Project:', firebase.app().options.projectId);
+console.log('Logged UID:', user.uid);
+console.log('Document Path:', ref.path);
+console.log('Document Exists:', doc.exists);
 
     if(!doc.exists){
       await auth.signOut();
@@ -942,11 +956,12 @@ async function loginClient(){
 
     msg.innerText = 'تم تسجيل الدخول بنجاح!';
 
-  }catch(error){
-    console.error('Login Client Error:', error);
-    msg.innerText = authErrorMessage(error);
-  }
+ }catch(error){
+  console.error('LOGIN CLIENT ERROR:', error.code, error.message, error);
+  msg.innerText = authErrorMessage(error);
+ }
 }
+
 async function logoutClient(){
   try{
     await auth.signOut();
@@ -1334,7 +1349,7 @@ async function cancelRide(id){
   if(reason === null) return;
 
   try{
-    const ref = db.collection('rides').doc(id);
+    const ref = db.collection('wrinkles').doc(id);
     const doc = await ref.get();
 
     if(!doc.exists){
@@ -1350,7 +1365,7 @@ async function cancelRide(id){
       return alert('ما تنجمش تلغي الطلب');
     }
 
-    const clientRef = db.collection('clients').doc(auth.currentUser.uid);
+    const clientRef = db.collection('customers').doc(auth.currentUser.uid);
     await db.runTransaction(async transaction => {
       const freshRide = await transaction.get(ref);
       const clientDoc = await transaction.get(clientRef);
@@ -1379,7 +1394,7 @@ async function rateRide(id,n){
   if(!Number.isInteger(n) || n < 1 || n > 5) return;
 
   try{
-    const ref = db.collection('rides').doc(id);
+    const ref = db.collection('wrinkles').doc(id)
     const doc = await ref.get();
 
     if(!doc.exists){
@@ -1529,7 +1544,7 @@ console.log('RENDER DRIVER START');
 // استقبال الطلبات الجديدة مباشرة من Firebase
 
 if(!stopDriverNewRides){
-  stopDriverNewRides = db.collection('rides')
+  stopDriverNewRides = db.collection('wrinkles').doc(id)
     .where('status','==','جديد')
     .where('driverId','==',null)
     .onSnapshot(snapshot => {
@@ -1553,12 +1568,12 @@ if(!stopDriverNewRides){
 
     const [newSnapshot, mineSnapshot] = await Promise.all([
 
-      db.collection('rides')
+      db.collection('wrinkles').doc(id)
   .where('status', '==', 'جديد')
   .where('driverId', '==', null)
   .get(),
 
-      db.collection('rides')
+      db.collection('rides').doc(id)
         .where('driverId', '==', uid)
         .get()
 
@@ -1685,41 +1700,70 @@ async function toggleDriverOnline(){
   }
 }
 
+
 async function acceptRide(id){
 
-  if(!driver || !online || !auth.currentUser)
+  if(!driver || !online || !auth.currentUser){
     return alert('لازم تكون متصل');
+  }
 
   try {
-   console.log('DRIVER:', driver);
-console.log('AUTH UID:', auth.currentUser?.uid);
-    const ref = db.collection('rides').doc(id);
-    const driverRef = db.collection('drivers').doc(auth.currentUser.uid);
+    const uid = auth.currentUser.uid;
+    const rideRef = db.collection('wrinkles').doc(id).doc(id);
+    const driverRef = db.collection('drivers').doc(uid);
 
     await db.runTransaction(async (transaction) => {
-      const doc = await transaction.get(ref);
+
+      // قراءة الرحلة وحساب السائق قبل أي تعديل
+      const rideDoc = await transaction.get(rideRef);
       const driverDoc = await transaction.get(driverRef);
-      if(!doc.exists) throw new Error('الطلب غير موجود');
-      if(!driverDoc.exists || driverDoc.data().active !== true) throw new Error('حساب السائق غير مفعّل');
-      const r = doc.data();
-      if(r.status !== 'جديد' || r.driverId) throw new Error('الطلب ما عادش متاح لسائق آخر');
-      if(driverDoc.data().activeRideId) throw new Error('عندك رحلة نشيطة بالفعل');
-      transaction.update(ref, {
-        status: 'مقبولة', driverId: auth.currentUser.uid,
-        driverName: driverDoc.data().name || driver.name,
-        driverPhone: driverDoc.data().phone || driver.phone
+
+      if(!rideDoc.exists){
+        throw new Error('الطلب غير موجود');
+      }
+
+      if(!driverDoc.exists){
+        throw new Error('حساب السائق غير موجود');
+      }
+
+      const rideData = rideDoc.data();
+      const driverData = driverDoc.data();
+
+      if(rideData.status !== 'جديد' || rideData.driverId != null){
+        throw new Error('الطلب ما عادش متاح لسائق آخر');
+      }
+
+      if(driverData.active !== true){
+        throw new Error('حساب السائق غير مفعّل');
+      }
+
+      if(driverData.activeRideId != null){
+        throw new Error('عندك رحلة أخرى مازالت نشيطة');
+      }
+
+      // ربط الرحلة بالسائق
+      transaction.update(rideRef, {
+        status: 'مقبولة',
+        driverId: uid,
+        driverName: driverData.name,
+        driverPhone: driverData.phone
       });
-      transaction.update(driverRef, {activeRideId: id});
+
+      // ربط الرحلة بحساب السائق أيضاً
+      transaction.update(driverRef, {
+        activeRideId: id
+      });
     });
 
-    alert('تم قبول الرحلة بنجاح');
-    renderDriver();
-
+    alert('تم قبول الرحلة بنجاح 🏍️');
+    await renderDriver();
+ 
   } catch(error) {
     console.error('Accept Ride Error:', error);
     alert('تعذر قبول الرحلة: ' + error.message);
   }
 }
+
 
 async function startRide(id){
 
@@ -1732,7 +1776,7 @@ async function startRide(id){
   }
 
   try {
-    const ref = db.collection('rides').doc(id);
+    const ref = db.collection('wrinkles').doc(id).doc(id);
 
     await db.runTransaction(async (transaction) => {
 
@@ -1775,7 +1819,7 @@ async function finishRide(id){
   if(!driver || !auth.currentUser) return;
 
   try {
-    const ref = db.collection('rides').doc(id);
+    const ref = db.collection('wrinkles').doc(id).doc(id);
     const driverRef = db.collection('drivers').doc(auth.currentUser.uid);
 
     await db.runTransaction(async (transaction) => {
@@ -1841,7 +1885,7 @@ async function printRideReceipt(rideId){
   if(!popup) return alert('اسمح بفتح النوافذ المنبثقة لطباعة الوصل.');
   popup.document.write('<!doctype html><html lang="ar" dir="rtl"><meta charset="utf-8"><title>وصل الرحلة</title><body style="font-family:Arial;padding:24px">جاري تجهيز الوصل...</body></html>');
   try{
-    const doc = await db.collection('rides').doc(rideId).get();
+    const doc = await db.collection('wrinkles').doc(rideId).get();
     if(!doc.exists) throw new Error('الرحلة غير موجودة');
     const r = doc.data();
     const isAdmin = auth.currentUser.uid === 'n4eiE6M94aYkBCxDBTgcjerNAJU2';
@@ -2016,7 +2060,7 @@ async function renderAdmin(){
 
   // تحميل الرحلات
   try {
-    const ridesSnapshot = await db.collection('rides').get();
+    const ridesSnapshot = await db.collection('wrinkles').doc(id).get();
    console.log('ADMIN UID:', firebase.auth().currentUser?.uid);
 
     const rs = ridesSnapshot.docs.map(doc => ({
@@ -2228,7 +2272,7 @@ async function exportCSV(){
     return alert('غير مسموح: يلزم حساب المسؤول');
   }
   try{
-    const snapshot = await db.collection('rides').get();
+    const snapshot = await db.collection('wrinkles').doc(id).get();
     const rides = snapshot.docs.map(doc => ({id:doc.id, ...doc.data()}));
     const rows = [['ID','Client','Phone','From','To','Distance','Fare','Commission','Status','Driver'],
       ...rides.map(r => [r.id,r.name,r.phone,r.from,r.to,r.distance,r.fare,r.commission,r.status,r.driverName])];
@@ -2368,7 +2412,7 @@ async function renderClient(){
   box.innerText = 'جاري تحميل طلباتك...';
 
   try{
-    const snapshot = await db.collection('rides')
+    const snapshot = await db.collection('wrinkles').doc(id)
       .where('clientId', '==', auth.currentUser.uid)
       .get();
 
@@ -2426,7 +2470,7 @@ async function markArrived(id){
   if(!driver || !auth.currentUser) return;
 
   try{
-    const ref = db.collection('rides').doc(id);
+    const ref = db.collection('wrinkles').doc(id).doc(id);
 
     await db.runTransaction(async transaction => {
       const doc = await transaction.get(ref);
@@ -2532,7 +2576,7 @@ function startClientRideNotifications(uid){
   stopRideNotifications();
   let firstSnapshot = true;
   const previous = new Map();
-  stopRideStatusNotifications = db.collection('rides')
+  stopRideStatusNotifications = db.collection('wrinkles').doc(id)
     .where('clientId','==',uid)
     .onSnapshot(snapshot => {
       snapshot.docChanges().forEach(change => {
@@ -2569,7 +2613,7 @@ function startDriverRideNotifications(uid){
   stopRideNotifications();
   let firstSnapshot = true;
   const previous = new Map();
-  stopRideStatusNotifications = db.collection('rides')
+  stopRideStatusNotifications = db.collection('rides').doc(id)
     .where('driverId','==',uid)
     .onSnapshot(snapshot => {
       snapshot.docChanges().forEach(change => {
@@ -2643,7 +2687,7 @@ auth.onAuthStateChanged(async user => {
     }
 
     // التثبت هل الحساب حريف
-    const clientDoc = await db.collection('clients')
+    const clientDoc = await db.collection('customers')
       .doc(user.uid).get();
 
     if (clientDoc.exists) {
@@ -2805,8 +2849,8 @@ async function applyDriver(){
     const pin = String(
       crypto.getRandomValues(new Uint32Array(1))[0] % 10000
     ).padStart(4,'0');
-const rideRef = db.collection('rides').doc();
-    const clientRef = db.collection('clients').doc(auth.currentUser.uid);
+const rideRef = db.collection('wrinkles').doc();
+const clientRef = db.collection('customers').doc(auth.currentUser.uid);
     const rideData = {
       clientId: auth.currentUser.uid,
       name: clientUser.name,
@@ -2881,20 +2925,7 @@ const rideRef = db.collection('rides').doc();
     alert('خطأ في تسجيل الخروج: ' + error.message);
   }
 }
-window.openPage = function(id) {
-  document.querySelectorAll('.page, .hero').forEach(function(el) {
-    el.style.display = 'none';
-  });
 
-  const page = document.getElementById(id);
-
-  if (!page) {
-    console.error('Page not found:', id);
-    return;
-  }
-
-  page.style.display = 'block';
-};
 </script>
 
 <div id="accessibilityTools" class="accessibility-tools" aria-label="أدوات سهولة الاستعمال">
@@ -2914,7 +2945,23 @@ window.openPage = function(id) {
 
 <div id="rideNoticeHost" aria-live="polite" aria-atomic="false"></div>
 <button type="button" id="enableRideNotifications" class="notification-settings">🔔 تفعيل إشعارات الهاتف</button>
+<script>
+window.openPage = function(id) {
+  // نخفي الصفحات الكل
+  document.querySelectorAll('.page, .hero').forEach(function(el) {
+    el.style.display = 'none';
+  });
 
+  // نظهر الصفحة المطلوبة
+  const page = document.getElementById(id);
+
+  if (!page) {
+    alert('الصفحة غير موجودة: ' + id);
+    return;
+  }
+
+  page.style.display = 'block';
 };
+</script>
 </body>
 </html>
