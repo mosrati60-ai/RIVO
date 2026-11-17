@@ -191,29 +191,33 @@ body.dark input,body.dark select,body.dark textarea{background:#203650;color:whi
    <p>🏁 الوجهة: <b id="toText">لم يتم الاختيار</b></p>
    <div id="routeInfo"></div>
    <h3 class="sectionTitle">معلومات الحريف</h3>
-   <input id="clientName" placeholder="اسمك" readonly>
-   <input id="clientPhone" placeholder="رقم هاتفك" readonly>
-   <label>موعد الرحلة</label>
+ <input type="text" placeholder="الاسم" data-i18n-placeholder="name">
+   <input id="clientPhone" placeholder="رقم هاتفك" data-i18n-placeholder="phone" readonly>
+   <label data-i18n="rideTime">موعد الرحلة</label>
    <select id="bookingType" onchange="toggleBooking()">
-    <option value="now">الآن</option>
+    <option value="now" data-i18n="now">الآن</option>
     <option value="later">حجز مسبق</option>
    </select>
    <input id="bookingTime" type="datetime-local" class="hide">
-   <label>طريقة الدفع</label>
-   <select id="payment"><option>نقداً</option></select>
+  <label data-i18n="rideTime">موعد الرحلة</label>
+   <select id="payment">
+  <option value="cash" data-i18n="cash">نقداً</option>
+</select>
    <label>ملاحظات</label>
    <textarea id="clientNotes" placeholder="ملاحظات اختيارية"></textarea>
-   <button class="primary" onclick="orderRide()">🏍️ اطلب موتور</button>
+  <button class="primary" onclick="orderRide()">
+  🏍️ <span data-i18n="order">اطلب موتور</span>
+</button>
    <div id="clientResult"></div>
   </div>
 
   <div class="card">
-   <h3 class="sectionTitle">⭐ طلباتي وتقييماتي</h3>
+   <h3 class="sectionTitle">⭐ <span data-i18n="myOrders">طلباتي وتقييماتي</span></h3>
    <div id="clientRequests"></div>
   </div>
 
   <div class="card">
-   <h3 class="sectionTitle">📌 الأماكن المفضلة</h3>
+   <h3 class="sectionTitle">📌 <span data-i18n="favorites">الأماكن المفضلة</span></h3>
    <input id="favName" placeholder="اسم المكان (الدار / الخدمة)">
    <input id="favAddress" placeholder="العنوان">
    <button class="primary" onclick="saveFavorite()">حفظ المكان</button>
