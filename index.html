@@ -1505,9 +1505,9 @@ if(!stopDriverNewRides){
                <button class="primary" onclick="startRide('${r.id}')">تأكيد بداية الرحلة</button>`
             : ''}
 
-          ${r.status === 'جارية'
-            ? <button class="green" onclick="finishRide('${r.id}')">إتمام الرحلة</button>
-            : ''}
+         ${r.status === 'جارية'
+  ? `<button class="green" onclick="finishRide('${r.id}')">إتمام الرحلة</button>`
+  : ''}
         </div>
       `).join('') || 'ما عندك حتى رحلة جارية';
 
