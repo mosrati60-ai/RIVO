@@ -983,7 +983,7 @@ function clearRoute(){
 }
 async function getPlaceName(p){
   try{
-    const url = https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${p[0]}&lon=${p[1]}&accept-language=ar,fr;
+    const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${p[0]}&lon=${p[1]}&accept-language=ar,fr`;
     const response = await fetch(url);
     const data = await response.json();
     const a = data.address || {};
