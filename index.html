@@ -2930,6 +2930,23 @@ const rideRef = db.collection('rides').doc();
 
 <div id="rideNoticeHost" aria-live="polite" aria-atomic="false"></div>
 <button type="button" id="enableRideNotifications" class="notification-settings">🔔 تفعيل إشعارات الهاتف</button>
+<script>
+window.openPage = function(id) {
+  // نخفي الصفحات الكل
+  document.querySelectorAll('.page, .hero').forEach(function(el) {
+    el.style.display = 'none';
+  });
 
+  // نظهر الصفحة المطلوبة
+  const page = document.getElementById(id);
+
+  if (!page) {
+    alert('الصفحة غير موجودة: ' + id);
+    return;
+  }
+
+  page.style.display = 'block';
+};
+</script>
 </body>
 </html>
