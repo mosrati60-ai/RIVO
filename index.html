@@ -916,7 +916,7 @@ async function loginClient(){
 
     const user = result.user;
 
-    cconst ref = db.collection('customers').doc(user.uid);
+const ref = db.collection('customers').doc(user.uid);
 const doc = await ref.get();
 
 console.log('Firebase Project:', firebase.app().options.projectId);
