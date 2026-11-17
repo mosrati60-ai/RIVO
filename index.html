@@ -886,23 +886,57 @@ async function searchDestination(value){
 }
 
 async function calculateRoute(){
- try{
-  $('mapHelp').innerText='جاري حساب المسافة...';
-  let url=https://router.project-osrm.org/route/v1/driving/${from[1]},${from[0]};${to[1]},${to[0]}?overview=full&geometries=geojson;
-  let d=await(await fetch(url)).json();
-  if(!d.routes?.length)throw Error('route');
-  let r=d.routes[0],s=getSettings(),km=r.distance/1000;
-  let fare=Math.max(s.minPrice,km*s.pricePerKm);
-  route={distance:+km.toFixed(2),minutes:Math.ceil(r.duration/60),fare:+fare.toFixed(2),commission:+(fare*s.commission/100).toFixed(2)};
-  clearRoute();
-  line=L.geoJSON(r.geometry,{style:{color:'#ff9000',weight:5}}).addTo(map);
-  map.fitBounds(line.getBounds());
-  $('routeInfo').innerHTML=<div class="info">المسافة التقديرية: ${route.distance} كم<br>الوقت التقريبي: ${route.minutes} دقيقة<br>السعر التقديري: <b class="price">${route.fare} د.ت</b></div>;
-  $('mapHelp').innerText='تم حساب المسافة والسعر.';
- }catch(e){
-  route=null;
-  $('mapHelp').innerText='تعذر حساب الطريق. جرّب نقاط أخرى أو تحقق من الإنترنت.';
- }
+  try {
+    $('mapHelp').innerText = 'جاري حساب المسافة...';
+
+    const url = `https://router.project-osrm.org/route/v1/driving/${from[1]},${from[0]};${to[1]},${to[0]}?overview=full&geometries=geojson`;
+
+    const response = await fetch(url);
+    const d = await response.json();
+
+    if (!d.routes?.length) {
+      throw new Error('لم يتم العثور على طريق');
+    }
+
+    const r = d.routes[0];
+    const s = getSettings();
+    const km = r.distance / 1000;
+
+    const fare = Math.max(s.minPrice, km * s.pricePerKm);
+
+    route = {
+      distance: +km.toFixed(2),
+      minutes: Math.ceil(r.duration / 60),
+      fare: +fare.toFixed(2),
+      commission: +(fare * s.commission / 100).toFixed(2)
+    };
+
+    clearRoute();
+
+    line = L.geoJSON(r.geometry, {
+      style: {
+        color: '#ff9000',
+        weight: 5
+      }
+    }).addTo(map);
+
+    map.fitBounds(line.getBounds());
+
+    $('routeInfo').innerHTML = `
+      <div class="info">
+        المسافة التقديرية: ${route.distance} كم<br>
+        الوقت التقريبي: ${route.minutes} دقيقة<br>
+        السعر التقديري:
+        <b class="price">${route.fare} د.ت</b>
+      </div>
+    `;
+
+    $('mapHelp').innerText = 'تم حساب المسافة والسعر.';
+
+  } catch(error) {
+    console.error('Calculate Route Error:', error);
+    $('mapHelp').innerText = 'تعذّر حساب الطريق. حاول مجدداً.';
+  }
 }
 
 /* الخريطة والبحث عن الوجهة */
