@@ -941,10 +941,9 @@ async function loginClient(){
 
     msg.innerText = 'تم تسجيل الدخول بنجاح!';
 
-  }catch(error){
-    console.error('Login Client Error:', error);
-    msg.innerText = authErrorMessage(error);
-  }
+ }catch(error){
+  console.error('LOGIN CLIENT ERROR:', error.code, error.message, error);
+  msg.innerText = 'Firebase Error: ' + error.code + ' - ' + error.message;
 }
 async function logoutClient(){
   try{
