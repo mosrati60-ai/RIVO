@@ -2881,7 +2881,20 @@ const rideRef = db.collection('rides').doc();
     alert('خطأ في تسجيل الخروج: ' + error.message);
   }
 }
+window.openPage = function(id) {
+  document.querySelectorAll('.page, .hero').forEach(function(el) {
+    el.style.display = 'none';
+  });
 
+  const page = document.getElementById(id);
+
+  if (!page) {
+    console.error('Page not found:', id);
+    return;
+  }
+
+  page.style.display = 'block';
+};
 </script>
 
 <div id="accessibilityTools" class="accessibility-tools" aria-label="أدوات سهولة الاستعمال">
@@ -2902,5 +2915,6 @@ const rideRef = db.collection('rides').doc();
 <div id="rideNoticeHost" aria-live="polite" aria-atomic="false"></div>
 <button type="button" id="enableRideNotifications" class="notification-settings">🔔 تفعيل إشعارات الهاتف</button>
 
+};
 </body>
 </html>
