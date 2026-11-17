@@ -1333,7 +1333,7 @@ async function cancelRide(id){
   if(reason === null) return;
 
   try{
-    const ref = db.collection('rides').doc(id);
+    const ref = db.collection('wrinkles').doc(id);
     const doc = await ref.get();
 
     if(!doc.exists){
@@ -1378,7 +1378,7 @@ async function rateRide(id,n){
   if(!Number.isInteger(n) || n < 1 || n > 5) return;
 
   try{
-    const ref = db.collection('rides').doc(id);
+    const ref = db.collection('wrinkles').doc(id)
     const doc = await ref.get();
 
     if(!doc.exists){
@@ -1528,7 +1528,7 @@ console.log('RENDER DRIVER START');
 // استقبال الطلبات الجديدة مباشرة من Firebase
 
 if(!stopDriverNewRides){
-  stopDriverNewRides = db.collection('rides')
+  stopDriverNewRides = db.collection('wrinkles').doc(id)
     .where('status','==','جديد')
     .where('driverId','==',null)
     .onSnapshot(snapshot => {
@@ -1552,12 +1552,12 @@ if(!stopDriverNewRides){
 
     const [newSnapshot, mineSnapshot] = await Promise.all([
 
-      db.collection('rides')
+      db.collection('wrinkles').doc(id)
   .where('status', '==', 'جديد')
   .where('driverId', '==', null)
   .get(),
 
-      db.collection('rides')
+      db.collection('rides').doc(id)
         .where('driverId', '==', uid)
         .get()
 
@@ -1693,7 +1693,7 @@ async function acceptRide(id){
 
   try {
     const uid = auth.currentUser.uid;
-    const rideRef = db.collection('rides').doc(id);
+    const rideRef = db.collection('wrinkles').doc(id).doc(id);
     const driverRef = db.collection('drivers').doc(uid);
 
     await db.runTransaction(async (transaction) => {
@@ -1760,7 +1760,7 @@ async function startRide(id){
   }
 
   try {
-    const ref = db.collection('rides').doc(id);
+    const ref = db.collection('wrinkles').doc(id).doc(id);
 
     await db.runTransaction(async (transaction) => {
 
@@ -1803,7 +1803,7 @@ async function finishRide(id){
   if(!driver || !auth.currentUser) return;
 
   try {
-    const ref = db.collection('rides').doc(id);
+    const ref = db.collection('wrinkles').doc(id).doc(id);
     const driverRef = db.collection('drivers').doc(auth.currentUser.uid);
 
     await db.runTransaction(async (transaction) => {
@@ -1869,7 +1869,9 @@ async function printRideReceipt(rideId){
   if(!popup) return alert('اسمح بفتح النوافذ المنبثقة لطباعة الوصل.');
   popup.document.write('<!doctype html><html lang="ar" dir="rtl"><meta charset="utf-8"><title>وصل الرحلة</title><body style="font-family:Arial;padding:24px">جاري تجهيز الوصل...</body></html>');
   try{
-    const doc = await db.collection('rides').doc(rideId).get();
+    const doc = await db.collection('wrinkles').doc(id) 
+     
+  doc(rideId).get();
     if(!doc.exists) throw new Error('الرحلة غير موجودة');
     const r = doc.data();
     const isAdmin = auth.currentUser.uid === 'n4eiE6M94aYkBCxDBTgcjerNAJU2';
@@ -2044,7 +2046,7 @@ async function renderAdmin(){
 
   // تحميل الرحلات
   try {
-    const ridesSnapshot = await db.collection('rides').get();
+    const ridesSnapshot = await db.collection('wrinkles').doc(id).get();
    console.log('ADMIN UID:', firebase.auth().currentUser?.uid);
 
     const rs = ridesSnapshot.docs.map(doc => ({
@@ -2256,7 +2258,7 @@ async function exportCSV(){
     return alert('غير مسموح: يلزم حساب المسؤول');
   }
   try{
-    const snapshot = await db.collection('rides').get();
+    const snapshot = await db.collection('wrinkles').doc(id).get();
     const rides = snapshot.docs.map(doc => ({id:doc.id, ...doc.data()}));
     const rows = [['ID','Client','Phone','From','To','Distance','Fare','Commission','Status','Driver'],
       ...rides.map(r => [r.id,r.name,r.phone,r.from,r.to,r.distance,r.fare,r.commission,r.status,r.driverName])];
@@ -2396,7 +2398,7 @@ async function renderClient(){
   box.innerText = 'جاري تحميل طلباتك...';
 
   try{
-    const snapshot = await db.collection('rides')
+    const snapshot = await db.collection('wrinkles').doc(id)
       .where('clientId', '==', auth.currentUser.uid)
       .get();
 
@@ -2454,7 +2456,7 @@ async function markArrived(id){
   if(!driver || !auth.currentUser) return;
 
   try{
-    const ref = db.collection('rides').doc(id);
+    const ref = db.collection('wrinkles').doc(id).doc(id);
 
     await db.runTransaction(async transaction => {
       const doc = await transaction.get(ref);
@@ -2560,7 +2562,7 @@ function startClientRideNotifications(uid){
   stopRideNotifications();
   let firstSnapshot = true;
   const previous = new Map();
-  stopRideStatusNotifications = db.collection('rides')
+  stopRideStatusNotifications = db.collection('wrinkles').doc(id)
     .where('clientId','==',uid)
     .onSnapshot(snapshot => {
       snapshot.docChanges().forEach(change => {
@@ -2597,7 +2599,7 @@ function startDriverRideNotifications(uid){
   stopRideNotifications();
   let firstSnapshot = true;
   const previous = new Map();
-  stopRideStatusNotifications = db.collection('rides')
+  stopRideStatusNotifications = db.collection('rides').doc(id)
     .where('driverId','==',uid)
     .onSnapshot(snapshot => {
       snapshot.docChanges().forEach(change => {
@@ -2833,7 +2835,7 @@ async function applyDriver(){
     const pin = String(
       crypto.getRandomValues(new Uint32Array(1))[0] % 10000
     ).padStart(4,'0');
-const rideRef = db.collection('rides').doc();
+const rideRef = db.collection('wrinkles').doc(id).doc();
     const clientRef = db.collection('clients').doc(auth.currentUser.uid);
     const rideData = {
       clientId: auth.currentUser.uid,
