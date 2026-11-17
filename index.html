@@ -405,6 +405,12 @@ const getSettings=()=>read('taxiSettings',{pricePerKm:.8,minPrice:2,commission:1
 let driver=null,online=false,map=null,from=null,to=null,m1=null,m2=null,line=null,route=null;
 let clientUser=null;
 let stopDriverNewRides = null;
+  
+let stopDriverMineRides = null;
+
+let driverNewRidesSnapshot = null;
+let driverMineRidesSnapshot = null;
+
 /* نظام اختيار اللغة */
 let currentLanguage = localStorage.getItem('taxiLanguage') || 'ar';
 
@@ -506,10 +512,22 @@ function openPage(id){
     renderAdmin();
   }
 
-  if(id === 'driverPanel'){
-    if(stopDriverNewRides){
-      stopDriverNewRides();
-      stopDriverNewRides = null;
+if(id === 'driverPanel'){
+
+  if(stopDriverNewRides){
+    stopDriverNewRides();
+    stopDriverNewRides = null;
+  }
+
+  if(stopDriverMineRides){
+    stopDriverMineRides();
+    stopDriverMineRides = null;
+  }
+
+  driverNewRidesSnapshot = null;
+  driverMineRidesSnapshot = null;
+}
+
     }
     renderDriver();
   }
@@ -1611,74 +1629,121 @@ async function acceptRide(id){
     return alert('لازم تكون متصل');
 
   try {
-   console.log('DRIVER:', driver);
-console.log('AUTH UID:', auth.currentUser?.uid);
-    const ref = db.collection('rides').doc(id);
+
+    const uid = auth.currentUser.uid;
+
+    const rideRef = db.collection('rides').doc(id);
+    const driverRef = db.collection('drivers').doc(uid);
 
     await db.runTransaction(async (transaction) => {
 
-      const doc = await transaction.get(ref);
+      // قراءة الرحلة وحساب السائق
+      const rideDoc = await transaction.get(rideRef);
+      const driverDoc = await transaction.get(driverRef);
 
-      if(!doc.exists)
+      if(!rideDoc.exists)
         throw new Error('الطلب غير موجود');
 
-      const r = doc.data();
+      if(!driverDoc.exists)
+        throw new Error('حساب السائق غير موجود');
 
+      const r = rideDoc.data();
+      const d = driverDoc.data();
+
+      // التحقق من الرحلة
       if(r.status !== 'جديد' || r.driverId)
-        throw new Error('الطلب ما عادش متاح لسائق آخر');
+        throw new Error('الطلب ما عادش متاح');
 
-      transaction.update(ref, {
+      // التحقق من حساب السائق
+      if(d.active !== true)
+        throw new Error('حسابك غير مفعّل');
+
+      // منع قبول رحلة ثانية
+      if(d.activeRideId)
+        throw new Error('عندك رحلة أخرى. كمّلها أولاً');
+
+      // حجز الرحلة للسائق
+      transaction.update(rideRef, {
         status: 'مقبولة',
-        driverId: auth.currentUser.uid,
-        driverName: driver.name,
-        driverPhone: driver.phone
+        driverId: uid,
+        driverName: d.name,
+        driverPhone: d.phone
+      });
+
+      // تسجيل الرحلة النشيطة عند السائق
+      transaction.update(driverRef, {
+        activeRideId: id
       });
 
     });
 
     alert('تم قبول الرحلة بنجاح');
+
     renderDriver();
 
   } catch(error) {
+
     console.error('Accept Ride Error:', error);
+
     alert('تعذر قبول الرحلة: ' + error.message);
   }
 }
+
 
 async function startRide(id){
 
   if(!driver || !auth.currentUser) return;
 
-  const pin = $('pin-' + id).value.trim();
+  const pinInput = $('pin-' + id);
+
+  if(!pinInput)
+    return alert('خانة PIN غير موجودة');
+
+  const pin = pinInput.value.trim();
 
   if(!/^\d{4}$/.test(pin)){
     return alert('أدخل رمز PIN صحيح من 4 أرقام');
   }
 
   try {
-    const ref = db.collection('rides').doc(id);
+
+    const uid = auth.currentUser.uid;
+
+    const rideRef = db.collection('rides').doc(id);
+    const driverRef = db.collection('drivers').doc(uid);
 
     await db.runTransaction(async (transaction) => {
 
-      const doc = await transaction.get(ref);
+      const rideDoc = await transaction.get(rideRef);
+      const driverDoc = await transaction.get(driverRef);
 
-      if(!doc.exists)
+      if(!rideDoc.exists)
         throw new Error('الرحلة غير موجودة');
 
-      const r = doc.data();
+      if(!driverDoc.exists)
+        throw new Error('حساب السائق غير موجود');
+
+      const r = rideDoc.data();
+      const d = driverDoc.data();
 
       if(
-        r.driverId !== auth.currentUser.uid ||
+        r.driverId !== uid ||
         r.status !== 'السائق وصل'
       ){
         throw new Error('ما تنجمش تبدأ الرحلة');
       }
 
+      if(d.active !== true)
+        throw new Error('حساب السائق غير مفعّل');
+
+      if(d.activeRideId !== id)
+        throw new Error('الرحلة موش مسجلة كرحلتك النشيطة');
+
       if(String(r.pin) !== pin){
         throw new Error('رمز PIN غير صحيح');
       }
 
-      transaction.update(ref, {
+      transaction.update(rideRef, {
         status: 'جارية',
         startedAt: firebase.firestore.FieldValue.serverTimestamp()
       });
@@ -1686,10 +1751,13 @@ async function startRide(id){
     });
 
     alert('تم تأكيد بداية الرحلة');
-    renderDriver();
+
+    await renderDriver();
 
   } catch(error) {
+
     console.error('Start Ride Error:', error);
+
     alert('تعذر بداية الرحلة: ' + error.message);
   }
 }
@@ -1699,36 +1767,55 @@ async function finishRide(id){
   if(!driver || !auth.currentUser) return;
 
   try {
-    const ref = db.collection('rides').doc(id);
+
+    const uid = auth.currentUser.uid;
+
+    const rideRef = db.collection('rides').doc(id);
+    const driverRef = db.collection('drivers').doc(uid);
 
     await db.runTransaction(async (transaction) => {
 
-      const doc = await transaction.get(ref);
+      const rideDoc = await transaction.get(rideRef);
+      const driverDoc = await transaction.get(driverRef);
 
-      if(!doc.exists)
+      if(!rideDoc.exists)
         throw new Error('الرحلة غير موجودة');
 
-      const r = doc.data();
+      if(!driverDoc.exists)
+        throw new Error('حساب السائق غير موجود');
+
+      const r = rideDoc.data();
+      const d = driverDoc.data();
 
       if(
-        r.driverId !== auth.currentUser.uid ||
+        r.driverId !== uid ||
         r.status !== 'جارية'
       ){
         throw new Error('ما تنجمش تكمل الرحلة');
       }
 
-      transaction.update(ref, {
+      transaction.update(rideRef, {
         status: 'مكتملة',
         completedAt: firebase.firestore.FieldValue.serverTimestamp()
       });
 
+      // تحرير السائق
+      if(d.activeRideId === id){
+        transaction.update(driverRef, {
+          activeRideId: null
+        });
+      }
+
     });
 
     alert('تم إكمال الرحلة بنجاح');
+
     renderDriver();
 
   } catch(error) {
+
     console.error('Finish Ride Error:', error);
+
     alert('تعذر إكمال الرحلة: ' + error.message);
   }
 }
@@ -2007,93 +2094,132 @@ function clearAllData(){
 
 
 /* عرض طلبات الحريف */
-async function renderClient(){
+
+let clientRidesUnsubscribe = null;
+
+function renderClient(){
+
   if(!clientUser || !auth.currentUser) return;
 
   const box = $('clientRequests');
+
+  if(clientRidesUnsubscribe){
+    clientRidesUnsubscribe();
+    clientRidesUnsubscribe = null;
+  }
+
   box.innerText = 'جاري تحميل طلباتك...';
 
-  try{
-    const snapshot = await db.collection('rides')
-      .where('clientId', '==', auth.currentUser.uid)
-      .get();
+  clientRidesUnsubscribe = db.collection('rides')
+    .where('clientId', '==', auth.currentUser.uid)
+    .onSnapshot(snapshot => {
 
-    const rides = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    }));
+      const rides = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
 
-    rides.sort((a,b) => {
-      const ta = a.createdAt?.toMillis?.() || 0;
-      const tb = b.createdAt?.toMillis?.() || 0;
-      return tb - ta;
-    });
+      rides.sort((a,b) => {
+        const ta = a.createdAt?.toMillis?.() || 0;
+        const tb = b.createdAt?.toMillis?.() || 0;
+        return tb - ta;
+      });
 
-    box.innerHTML = rides.map(r => `
-      <div class="item">
-        <b>رحلة: ${esc(r.id)}</b><br>
-        الانطلاق: ${esc(r.from || '')}<br>
-        الوجهة: ${esc(r.to || '')}<br>
-        السعر: ${Number(r.fare || 0).toFixed(2)} د.ت<br>
-        الحالة: <b>${esc(r.status || '')}</b><br>
+      box.innerHTML = rides.map(r => `
+        <div class="item">
+          <b>رحلة: ${esc(r.id)}</b><br>
+          الانطلاق: ${esc(r.from || '')}<br>
+          الوجهة: ${esc(r.to || '')}<br>
+          السعر: ${Number(r.fare || 0).toFixed(2)} د.ت<br>
+          الحالة: <b>${esc(r.status || '')}</b><br>
 
-        ${r.status === 'جديد' ? `
-          <button class="red" onclick="cancelRide('${r.id}')">
-            إلغاء الطلب
-          </button>
-        ` : ''}
+          ${r.driverName ? `
+            السائق: ${esc(r.driverName)}<br>
+            الهاتف: ${esc(r.driverPhone || '')}<br>
+          ` : ''}
 
-        ${r.status === 'مكتملة' && !r.rating ? `
-          <p>قيّم الرحلة:</p>
-          ${[1,2,3,4,5].map(n => `
-            <button class="blue" onclick="rateRide('${r.id}',${n})">
-              ${n} ⭐
+          ${r.status === 'جديد' ? `
+            <button class="red"
+              onclick="cancelRide('${r.id}')">
+              إلغاء الطلب
             </button>
-          `).join('')}
-        ` : ''}
+          ` : ''}
 
-        ${r.rating ? `تقييمك: ${r.rating} ⭐` : ''}
-      </div>
-    `).join('') || 'ما عندك حتى طلب رحلة حالياً';
+          ${r.status === 'مكتملة' && !r.rating ? `
+            <p>قيّم الرحلة:</p>
+            ${[1,2,3,4,5].map(n => `
+              <button class="blue"
+                onclick="rateRide('${r.id}',${n})">
+                ${n} ⭐
+              </button>
+            `).join('')}
+          ` : ''}
 
-  }catch(error){
-    console.error('Render Client Error:',error);
-    box.innerText = 'تعذّر تحميل الطلبات: ' + error.message;
-  }
+          ${r.rating ? `تقييمك: ${r.rating} ⭐` : ''}
+        </div>
+      `).join('') || 'ما عندك حتى طلب رحلة حالياً';
+
+    }, error => {
+
+      console.error('Client Snapshot Error:',error);
+
+      box.innerText =
+        'تعذّر تحميل الطلبات: ' + error.message;
+    });
 }
 
 /* تأكيد وصول السائق */
+
 async function markArrived(id){
+
   if(!driver || !auth.currentUser) return;
 
   try{
-    const ref = db.collection('rides').doc(id);
+
+    const uid = auth.currentUser.uid;
+
+    const rideRef = db.collection('rides').doc(id);
+    const driverRef = db.collection('drivers').doc(uid);
 
     await db.runTransaction(async transaction => {
-      const doc = await transaction.get(ref);
 
-      if(!doc.exists) throw new Error('الرحلة غير موجودة');
+      const rideDoc = await transaction.get(rideRef);
+      const driverDoc = await transaction.get(driverRef);
 
-      const ride = doc.data();
+      if(!rideDoc.exists)
+        throw new Error('الرحلة غير موجودة');
+
+      if(!driverDoc.exists)
+        throw new Error('حساب السائق غير موجود');
+
+      const ride = rideDoc.data();
+      const driverData = driverDoc.data();
 
       if(
-        ride.driverId !== auth.currentUser.uid ||
+        ride.driverId !== uid ||
         ride.status !== 'مقبولة'
       ){
         throw new Error('ما تنجمش تأكد الوصول للرحلة هاذي');
       }
 
-      transaction.update(ref,{
+      if(driverData.activeRideId !== id)
+        throw new Error('الرحلة موش مسجلة عندك كرحلة نشيطة');
+
+      transaction.update(rideRef,{
         status: 'السائق وصل',
         arrivedAt: firebase.firestore.FieldValue.serverTimestamp()
       });
+
     });
 
     alert('تم تأكيد الوصول');
+
     await renderDriver();
 
   }catch(error){
+
     console.error('Mark Arrived Error:',error);
+
     alert('تعذّر تأكيد الوصول: ' + error.message);
   }
 }
@@ -2280,7 +2406,8 @@ async function applyDriver(){
       'تعذّر إرسال الطلب: ' + error.message;
   }
 }
-  async function orderRide(){
+ 
+async function orderRide(){
 
   if(!clientUser || !auth.currentUser){
     return alert('سجّل الدخول أولاً');
@@ -2295,27 +2422,41 @@ async function applyDriver(){
   }
 
   try{
+    $('clientResult').innerText = 'جاري التحقق من طلباتك...';
+
+    const uid = auth.currentUser.uid;
+
+    // التحقق من وجود رحلة نشيطة
+    const activeStatuses = [
+      'جديد',
+      'مقبولة',
+      'السائق وصل',
+      'جارية'
+    ];
+
+    const existing = await db.collection('rides')
+      .where('clientId', '==', uid)
+      .get();
+
+    const hasActiveRide = existing.docs.some(doc =>
+      activeStatuses.includes(doc.data().status)
+    );
+
+    if(hasActiveRide){
+      $('clientResult').innerText =
+        'عندك رحلة نشيطة بالفعل. أكملها أو ألغِ الطلب الحالي أولاً.';
+      return;
+    }
+
     $('clientResult').innerText = 'جاري إرسال الطلب...';
 
     const pin = String(
       crypto.getRandomValues(new Uint32Array(1))[0] % 10000
     ).padStart(4,'0');
-console.log('AUTH:', auth.currentUser?.uid);
-console.log('FARE:', route.fare, typeof route.fare);
-console.log('PHONE:', clientUser.phone, typeof clientUser.phone);
-console.log('CLIENT ID:', clientUser.uid);
-   console.log('CREATE CHECK:', {
-  signedIn: !!auth.currentUser,
-  clientIdMatches: clientUser.uid === auth.currentUser?.uid,
-  status: 'جديد',
-  driverId: null,
-  fare: route.fare,
-  fareIsNumber: typeof route.fare === 'number',
-  phone: clientUser.phone,
-  phoneIsString: typeof clientUser.phone === 'string'
-});
+
     await db.collection('rides').add({
-      clientId: auth.currentUser.uid,
+
+      clientId: uid,
       name: clientUser.name,
       phone: clientUser.phone,
 
@@ -2334,32 +2475,26 @@ console.log('CLIENT ID:', clientUser.uid);
 
       pin: pin,
       status: 'جديد',
-     driverId: null,
+      driverId: null,
+
       payment: $('payment').value,
       bookingType: $('bookingType').value,
       bookingTime: $('bookingTime').value,
       notes: $('clientNotes').value.trim(),
 
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
+
     });
 
-        $('clientResult').innerText =
+    $('clientResult').innerText =
       'تم إرسال طلبك بنجاح! استنى قبول سائق. رمز الرحلة: ' + pin;
 
   }catch(error){
+
     console.error('Order Ride Error:',error);
+
     $('clientResult').innerText =
       'تعذّر إرسال الطلب: ' + error.message;
-  }
-}
-  async function driverLogout() {
-  try {
-    await firebase.auth().signOut();
-    alert('تم تسجيل الخروج بنجاح');
-    location.reload();
-  } catch (error) {
-    console.error('Driver Logout Error:', error);
-    alert('خطأ في تسجيل الخروج: ' + error.message);
   }
 }
 </script>
