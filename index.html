@@ -2826,34 +2826,62 @@ console.log('CLIENT ID:', clientUser.uid);
   phone: clientUser.phone,
   phoneIsString: typeof clientUser.phone === 'string'
 });
-    await db.collection('rides').add({
-      clientId: auth.currentUser.uid,
-      name: clientUser.name,
-      phone: clientUser.phone,
+    
+// تأكد من تسجيل الدخول
+const user = auth.currentUser;
 
-      from: $('fromText').innerText,
-      to: $('toText').innerText,
+if (!user) {
+  throw new Error('يجب تسجيل الدخول أولاً');
+}
 
-      fromLat: from[0],
-      fromLng: from[1],
-      toLat: to[0],
-      toLng: to[1],
+// مراجع Firestore
+const clientRef = db.collection('clients').doc(user.uid);
+const rideRef = db.collection('rides').doc();
 
-      distance: route.distance,
-      minutes: route.minutes,
-      fare: route.fare,
-      commission: route.commission,
+// بيانات الرحلة
+const rideData = {
+  clientId: user.uid,
+  name: clientUser.name,
+  phone: clientUser.phone,
 
-      pin: pin,
-      status: 'جديد',
-     driverId: null,
-      payment: $('payment').value,
-      bookingType: $('bookingType').value,
-      bookingTime: $('bookingTime').value,
-      notes: $('clientNotes').value.trim(),
+  from: $('fromText').innerText,
+  to: $('toText').innerText,
 
-      createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
+  fromLat: from[0],
+  fromLng: from[1],
+  toLat: to[0],
+  toLng: to[1],
+
+  distance: route.distance,
+  minutes: route.minutes,
+  fare: route.fare,
+  commission: route.commission,
+
+  pin: pin,
+  status: 'جديد',
+  driverId: null,
+
+  payment: $('payment').value,
+  bookingType: $('bookingType').value,
+  bookingTime: $('bookingTime').value,
+  notes: $('clientNotes').value.trim(),
+
+  createdAt: firebase.firestore.FieldValue.serverTimestamp()
+};
+
+// تنفيذ العمليتين مع بعضهما
+const batch = db.batch();
+
+batch.set(rideRef, rideData);
+
+batch.update(clientRef, {
+  activeRideId: rideRef.id
+});
+
+// إرسال الطلب
+await batch.commit();
+
+console.log('Ride created:', rideRef.id);
 
         $('clientResult').innerHTML =
       'تم إرسال طلبك بنجاح! استنى قبول سائق.<br>رمز الرحلة: <strong id="lastRidePin"></strong> ' +
