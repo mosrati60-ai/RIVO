@@ -2427,16 +2427,19 @@ async function orderRide(){
     return alert('اختار الانطلاق والوجهة واستنى حساب السعر');
   }
 
-  if($('bookingType').value === 'later' && !$('bookingTime').value){
+  if(
+    $('bookingType').value === 'later' &&
+    !$('bookingTime').value
+  ){
     return alert('اختار موعد الرحلة');
   }
 
   try{
+
     $('clientResult').innerText = 'جاري التحقق من طلباتك...';
 
     const uid = auth.currentUser.uid;
 
-    // التحقق من وجود رحلة نشيطة
     const activeStatuses = [
       'جديد',
       'مقبولة',
@@ -2444,6 +2447,7 @@ async function orderRide(){
       'جارية'
     ];
 
+    // التحقق من الرحلات القديمة
     const existing = await db.collection('rides')
       .where('clientId', '==', uid)
       .get();
@@ -2460,11 +2464,15 @@ async function orderRide(){
 
     $('clientResult').innerText = 'جاري إرسال الطلب...';
 
+    // تجهيز بيانات الرحلة
     const pin = String(
       crypto.getRandomValues(new Uint32Array(1))[0] % 10000
     ).padStart(4,'0');
 
-    await db.collection('rides').add({
+    const rideRef = db.collection('rides').doc();
+    const clientRef = db.collection('clients').doc(uid);
+
+    const rideData = {
 
       clientId: uid,
       name: clientUser.name,
@@ -2494,6 +2502,29 @@ async function orderRide(){
 
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
 
+    };
+
+    // إنشاء الرحلة وحجزها للحريف في نفس العملية
+    await db.runTransaction(async transaction => {
+
+      const clientDoc = await transaction.get(clientRef);
+
+      if(!clientDoc.exists){
+        throw new Error('حساب الحريف غير موجود');
+      }
+
+      const clientData = clientDoc.data();
+
+      if(clientData.activeRideId != null){
+        throw new Error('عندك رحلة نشيطة بالفعل');
+      }
+
+      transaction.set(rideRef, rideData);
+
+      transaction.update(clientRef, {
+        activeRideId: rideRef.id
+      });
+
     });
 
     $('clientResult').innerText =
@@ -2501,7 +2532,7 @@ async function orderRide(){
 
   }catch(error){
 
-    console.error('Order Ride Error:',error);
+    console.error('Order Ride Error:', error);
 
     $('clientResult').innerText =
       'تعذّر إرسال الطلب: ' + error.message;
