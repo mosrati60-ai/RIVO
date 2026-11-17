@@ -1934,23 +1934,49 @@ async function renderAdmin(){
 }
 
 async function deleteDriver(id) {
-  if (!auth.currentUser) {
+
+  if(!auth.currentUser){
     return alert('لازم المسؤول يعمل تسجيل دخول');
   }
 
-  if (!confirm('متأكد تحب تحذف السائق؟')) {
+  if(auth.currentUser.uid !== 'n4eiE6M94aYkBCxDBTgcjerNAJU2'){
+    return alert('ما عندكش صلاحية المسؤول');
+  }
+
+  if(!confirm('متأكد تحب تحذف السائق؟')){
     return;
   }
 
-  try {
-    await db.collection('drivers').doc(id).delete();
+  try{
+
+    const ref = db.collection('drivers').doc(id);
+
+    await db.runTransaction(async transaction => {
+
+      const doc = await transaction.get(ref);
+
+      if(!doc.exists){
+        throw new Error('حساب السائق غير موجود');
+      }
+
+      const data = doc.data();
+
+      if(data.activeRideId != null){
+        throw new Error('ما تنجمش تحذف سائق عنده رحلة نشيطة');
+      }
+
+      transaction.delete(ref);
+
+    });
 
     alert('تم حذف السائق بنجاح');
-
     await renderAdmin();
 
-  } catch (error) {
-    alert('خطأ في حذف السائق: ' + error.message);
+  }catch(error){
+
+    console.error('Delete Driver Error:',error);
+
+    alert('تعذر حذف السائق: ' + error.message);
   }
 }
 
@@ -1997,11 +2023,14 @@ async function toggleDriver(id, currentStatus){
   }
 }
 
-
 async function approveApplication(id){
 
   if(!auth.currentUser){
     return alert('لازم المسؤول يعمل تسجيل دخول');
+  }
+
+  if(auth.currentUser.uid !== 'n4eiE6M94aYkBCxDBTgcjerNAJU2'){
+    return alert('ما عندكش صلاحية المسؤول');
   }
 
   if(!confirm('متأكد تحب تقبل مطلب السائق؟')){
@@ -2009,9 +2038,12 @@ async function approveApplication(id){
   }
 
   try{
+
+    const adminUid = auth.currentUser.uid;
     const ref = db.collection('driverApplications').doc(id);
 
-    await db.runTransaction(async(transaction)=>{
+    await db.runTransaction(async transaction => {
+
       const doc = await transaction.get(ref);
 
       if(!doc.exists){
@@ -2029,6 +2061,11 @@ async function approveApplication(id){
       }
 
       const driverRef = db.collection('drivers').doc(data.uid);
+      const driverDoc = await transaction.get(driverRef);
+
+      if(driverDoc.exists){
+        throw new Error('حساب السائق موجود بالفعل');
+      }
 
       transaction.set(driverRef,{
         uid: data.uid,
@@ -2038,14 +2075,16 @@ async function approveApplication(id){
         info: data.info || '',
         active: true,
         online: false,
+        activeRideId: null,
         approvedAt: firebase.firestore.FieldValue.serverTimestamp()
       });
 
       transaction.update(ref,{
         status: 'تم القبول',
         approvedAt: firebase.firestore.FieldValue.serverTimestamp(),
-        approvedBy: auth.currentUser.uid
+        approvedBy: adminUid
       });
+
     });
 
     alert('تم قبول السائق وتفعيل حسابه بنجاح');
