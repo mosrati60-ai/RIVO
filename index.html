@@ -1762,6 +1762,7 @@ async function startRide(id){
   }
 }
 
+
 async function finishRide(id){
 
   if(!driver || !auth.currentUser) return;
@@ -1787,24 +1788,28 @@ async function finishRide(id){
       const r = rideDoc.data();
       const d = driverDoc.data();
 
-      if(
-        r.driverId !== uid ||
-        r.status !== 'جارية'
-      ){
+      if(r.driverId !== uid || r.status !== 'جارية'){
         throw new Error('ما تنجمش تكمل الرحلة');
       }
 
+      if(d.active !== true){
+        throw new Error('حساب السائق غير مفعّل');
+      }
+
+      if(d.activeRideId !== id){
+        throw new Error('رقم الرحلة النشيطة غير مطابق');
+      }
+
+      // إكمال الرحلة
       transaction.update(rideRef, {
         status: 'مكتملة',
         completedAt: firebase.firestore.FieldValue.serverTimestamp()
       });
 
-      // تحرير السائق
-      if(d.activeRideId === id){
-        transaction.update(driverRef, {
-          activeRideId: null
-        });
-      }
+      // تحرير السائق في نفس العملية
+      transaction.update(driverRef, {
+        activeRideId: null
+      });
 
     });
 
@@ -2202,6 +2207,9 @@ async function markArrived(id){
         throw new Error('ما تنجمش تأكد الوصول للرحلة هاذي');
       }
 
+      if(driverData.active !== true)
+        throw new Error('حساب السائق غير مفعّل');
+
       if(driverData.activeRideId !== id)
         throw new Error('الرحلة موش مسجلة عندك كرحلة نشيطة');
 
@@ -2223,6 +2231,7 @@ async function markArrived(id){
     alert('تعذّر تأكيد الوصول: ' + error.message);
   }
 }
+
 
 /* إرسال شكوى الحريف */
 async function sendComplaint(){
