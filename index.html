@@ -2979,6 +2979,26 @@ async function orderRide(){
       'تعذّر إرسال الطلب: ' + error.message;
   }
 }
+
+<script>
+window.openPage = function(id) {
+  document.querySelectorAll('.page, .hero').forEach(el => {
+    el.style.display = 'none';
+  });
+
+  const page = document.getElementById(id);
+
+  if (!page) {
+    alert('الصفحة غير موجودة: ' + id);
+    return;
+  }
+
+  page.style.display = 'block';
+};
+
+window.toggleTheme = function() {
+  document.body.classList.toggle('dark-mode');
+};
 </script>
 </body>
 </html>
