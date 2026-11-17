@@ -889,12 +889,13 @@ async function registerClient(){
     msg.innerText = 'تم إنشاء الحساب بنجاح!';
 
   }catch(error){
-    console.error('Register Client Error:', error);
-    msg.innerText = authErrorMessage(error);
-  }
+  console.error('LOGIN CLIENT ERROR:', error.code, error.message, error);
+  msg.innerText = 'Firebase Error: ' + error.code + ' - ' + error.message;
 }
 
-async function loginClient(){
+} // نهاية loginClient
+
+async function logoutClient(){
   if(!window.firebase || !firebase.auth || !firebase.firestore){
     $('clientAuthMessage').innerText = 'خدمات Firebase ما تحمّلتش. تأكد من الإنترنت وافتح التطبيق عبر GitHub Pages ثم حدّث الصفحة.';
     return;
