@@ -866,7 +866,7 @@ async function registerClient(){
 
     const user = result.user;
 
-    await db.collection('clients').doc(user.uid).set({
+    await db.collection('customers').doc(user.uid).set({
       uid: user.uid,
       name: name,
       phone: phone,
@@ -889,13 +889,12 @@ async function registerClient(){
     msg.innerText = 'تم إنشاء الحساب بنجاح!';
 
   }catch(error){
-  console.error('LOGIN CLIENT ERROR:', error.code, error.message, error);
-  msg.innerText = 'Firebase Error: ' + error.code + ' - ' + error.message;
+    console.error('Register Client Error:', error);
+    msg.innerText = authErrorMessage(error);
+  }
 }
 
-} // نهاية loginClient
-
-async function logoutClient(){
+async function loginClient(){
   if(!window.firebase || !firebase.auth || !firebase.firestore){
     $('clientAuthMessage').innerText = 'خدمات Firebase ما تحمّلتش. تأكد من الإنترنت وافتح التطبيق عبر GitHub Pages ثم حدّث الصفحة.';
     return;
@@ -949,8 +948,10 @@ console.log('Document Exists:', doc.exists);
 
  }catch(error){
   console.error('LOGIN CLIENT ERROR:', error.code, error.message, error);
-  msg.innerText = 'Firebase Error: ' + error.code + ' - ' + error.message;
+  msg.innerText = authErrorMessage(error);
+ }
 }
+
 async function logoutClient(){
   try{
     await auth.signOut();
@@ -1354,7 +1355,7 @@ async function cancelRide(id){
       return alert('ما تنجمش تلغي الطلب');
     }
 
-    const clientRef = db.collection('clients').doc(auth.currentUser.uid);
+    const clientRef = db.collection('customers').doc(auth.currentUser.uid);
     await db.runTransaction(async transaction => {
       const freshRide = await transaction.get(ref);
       const clientDoc = await transaction.get(clientRef);
@@ -2678,7 +2679,7 @@ auth.onAuthStateChanged(async user => {
     }
 
     // التثبت هل الحساب حريف
-    const clientDoc = await db.collection('clients')
+    const clientDoc = await db.collection('customers')
       .doc(user.uid).get();
 
     if (clientDoc.exists) {
@@ -2840,7 +2841,7 @@ async function applyDriver(){
     const pin = String(
       crypto.getRandomValues(new Uint32Array(1))[0] % 10000
     ).padStart(4,'0');
-cconst rideRef = db.collection('wrinkles').doc();
+const rideRef = db.collection('wrinkles').doc();
 const clientRef = db.collection('customers').doc(auth.currentUser.uid);
     const rideData = {
       clientId: auth.currentUser.uid,
