@@ -481,7 +481,9 @@ function translateText(key){
       || appTranslations.ar[key]
       || key;
 }
+
 function openPage(id){
+
   document.querySelectorAll('.page,.hero').forEach(x=>{
     x.style.display = 'none';
   });
@@ -512,27 +514,13 @@ function openPage(id){
     renderAdmin();
   }
 
-if(id === 'driverPanel'){
-
-  if(stopDriverNewRides){
-    stopDriverNewRides();
-    stopDriverNewRides = null;
-  }
-
-  if(stopDriverMineRides){
-    stopDriverMineRides();
-    stopDriverMineRides = null;
-  }
-
-  driverNewRidesSnapshot = null;
-  driverMineRidesSnapshot = null;
-}
-
-    }
+  if(id === 'driverPanel'){
     renderDriver();
   }
 
   window.scrollTo(0,0);
+}
+
 }
 function goHome(){
  document.querySelectorAll('.page').forEach(x=>x.style.display='none');
