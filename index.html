@@ -2262,7 +2262,7 @@ console.log('CLIENT ID:', clientUser.uid);
       'تعذّر إرسال الطلب: ' + error.message;
   }
 }
-  async function driverLogout() {
+ async function driverLogout() {
   try {
     await firebase.auth().signOut();
     alert('تم تسجيل الخروج بنجاح');
@@ -2272,7 +2272,7 @@ console.log('CLIENT ID:', clientUser.uid);
     alert('خطأ في تسجيل الخروج: ' + error.message);
   }
 }
-<script>
+
 window.openPage = function(id) {
   document.querySelectorAll('.page, .hero').forEach(el => {
     el.style.display = 'none';
@@ -2281,7 +2281,7 @@ window.openPage = function(id) {
   const page = document.getElementById(id);
 
   if (!page) {
-    alert('الصفحة غير موجودة: ' + id);
+    console.error('الصفحة غير موجودة:', id);
     return;
   }
 
