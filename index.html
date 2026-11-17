@@ -453,28 +453,14 @@ body.high-contrast button{outline:1px solid #000}
  <div class="card auth-shell">
   <div class="auth-head"><div class="auth-icon">🛡️</div><div><h2>فضاء المسؤول</h2><p>منطقة إدارية محمية للحسابات المعتمدة</p></div></div>
   <p class="muted">هذا الفضاء مخصّص لحساب المسؤول المعتمد فقط. حساب الحريف أو السائق لا يفتح لوحة الإدارة.</p>
-  <div id="adminRegisterBox">
-   <h3>إنشاء حساب مسؤول أول مرة</h3>
-   <input id="adminName" placeholder="اسم المسؤول">
-   <input id="adminPhone" placeholder="رقم الهاتف">
-   <input id="adminNewPass" type="password" placeholder="كلمة السر">
-   <input id="adminConfirmPass" type="password" placeholder="تأكيد كلمة السر">
-   <button class="primary" onclick="registerAdmin()">إنشاء الحساب</button>
-  </div>
-  <div id="adminLoginBox" class="hide">
-   <h3>تسجيل الدخول</h3>
-   <p id="adminWelcome"></p>
- <input
-  id="adminLoginEmail"
-  type="email"
-  placeholder="البريد الإلكتروني"
-  autocomplete="username"
->
-   <input id="adminPass" type="password" placeholder="كلمة السر">
+  <div id="adminLoginBox">
+   <h3>تسجيل دخول المسؤول</h3>
+   <p id="adminWelcome">اكتب البريد الإلكتروني وكلمة السر للدخول مباشرة</p>
+   <input id="adminLoginEmail" type="email" placeholder="البريد الإلكتروني" autocomplete="username">
+   <input id="adminPass" type="password" placeholder="كلمة السر" autocomplete="current-password">
    <button type="button" class="primary" onclick="loginAdmin()">دخول الإدارة</button>
   </div>
   <p id="adminError" class="auth-message" role="status" aria-live="polite"></p>
-  <div class="auth-note">لا تنشئ حساب مسؤول من الواجهة العامة. اعتماد المسؤول يجب أن يتم من إعدادات Firebase وقواعد Firestore الآمنة.</div>
  </div>
 </section>
 
@@ -1015,15 +1001,11 @@ async function forgotClientPassword(){
 
 /* المسؤول */
 function checkAdmin(){
-  $('adminRegisterBox').classList.add('hide');
-  $('adminLoginBox').classList.remove('hide');
+  // واجهة المسؤول تعرض تسجيل الدخول فقط، دون إنشاء حساب جديد.
+  const loginBox = $('adminLoginBox');
+  if(loginBox) loginBox.classList.remove('hide');
   if($('adminWelcome')) $('adminWelcome').innerText = 'مرحبا بك في فضاء المسؤول';
-}
-
-
-function registerAdmin(){
-  $('adminError').innerText =
-    'حساب المسؤول موجود بالفعل. استعمل تسجيل الدخول.';
+  if($('adminError')) $('adminError').innerText = '';
 }
 
 
