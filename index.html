@@ -191,7 +191,7 @@ body.dark input,body.dark select,body.dark textarea{background:#203650;color:whi
    <p>🏁 الوجهة: <b id="toText">لم يتم الاختيار</b></p>
    <div id="routeInfo"></div>
    <h3 class="sectionTitle">معلومات الحريف</h3>
- <input type="text" placeholder="الاسم" data-i18n-placeholder="name">
+ <input id="clientName" type="text" placeholder="الاسم" data-i18n-placeholder="name">
    <input id="clientPhone" placeholder="رقم هاتفك" data-i18n-placeholder="phone" readonly>
    <label data-i18n="rideTime">موعد الرحلة</label>
    <select id="bookingType" onchange="toggleBooking()">
@@ -244,9 +244,10 @@ body.dark input,body.dark select,body.dark textarea{background:#203650;color:whi
   placeholder="البريد الإلكتروني"
   autocomplete="username"
 >
-  <input id="driverPass" type="password" placeholder="كلمة السر">
-  <button class="primary" onclick="loginDriver()">دخول</button>
- <p id="driverError"></p>
+<input id="driverEmail" type="email" placeholder="البريد الإلكتروني">
+<input id="driverPass" type="password" placeholder="كلمة السر">
+<button class="primary" onclick="loginDriver()">دخول</button>
+<p id="driverError"></p>
   <hr>
 <h3>طلب الانضمام كسائق</h3>
 
@@ -338,6 +339,7 @@ body.dark input,body.dark select,body.dark textarea{background:#203650;color:whi
   <h3 class="sectionTitle">➕ إضافة سائق</h3>
   <input id="newName" placeholder="اسم السائق">
   <input id="newPhone" placeholder="رقم هاتف السائق">
+  <input id="newEmail" type="email" placeholder="البريد الإلكتروني للسائق">
   <input id="newPassword" type="password" placeholder="كلمة سر السائق">
   <button class="primary" onclick="addDriver()">إضافة السائق</button>
   <p id="addResult"></p>
@@ -521,7 +523,6 @@ function openPage(id){
   window.scrollTo(0,0);
 }
 
-}
 function goHome(){
  document.querySelectorAll('.page').forEach(x=>x.style.display='none');
  $('home').style.display='flex';
@@ -982,6 +983,144 @@ async function searchDestination(value){
     box.innerText = 'تعذّر البحث. تحقق من الإنترنت وحاول مجدداً.';
   }
 }
+async function addDriver(){
+  if(!auth.currentUser ||
+     auth.currentUser.uid !== 'n4eiE6M94aYkBCxDBTgcjerNAJU2'){
+    return $('addResult').innerText = 'ما عندكش صلاحية المسؤول';
+  }
+
+  const name = $('newName').value.trim();
+  const phone = $('newPhone').value.trim();
+  const email = $('newEmail').value.trim().toLowerCase();
+  const password = $('newPassword').value;
+
+  if(!name || !phone || !email || !password){
+    return $('addResult').innerText = 'عمر جميع الخانات';
+  }
+
+  if(password.length < 6){
+    return $('addResult').innerText =
+      'كلمة السر لازم تكون 6 أحرف على الأقل';
+  }
+
+  let secondaryApp;
+  let newUser = null;
+
+  try{
+    $('addResult').innerText = 'جاري إنشاء حساب السائق...';
+
+    const existing = await db.collection('drivers')
+      .where('email', '==', email)
+      .get();
+
+    if(!existing.empty){
+      throw new Error('هذا الإيميل مربوط بسائق موجود');
+    }
+
+    secondaryApp = firebase.apps.find(
+      app => app.name === 'DriverCreation'
+    );
+
+    if(!secondaryApp){
+      secondaryApp = firebase.initializeApp(
+        firebaseConfig,
+        'DriverCreation'
+      );
+    }
+
+    const secondaryAuth = secondaryApp.auth();
+
+    const credential =
+      await secondaryAuth.createUserWithEmailAndPassword(
+        email,
+        password
+      );
+
+    newUser = credential.user;
+
+    await db.collection('drivers').doc(newUser.uid).set({
+      uid: newUser.uid,
+      name: name,
+      email: email,
+      phone: phone,
+      info: '',
+      active: true,
+      online: false,
+      activeRideId: null,
+      approvedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+
+    await secondaryAuth.signOut();
+
+    $('newName').value = '';
+    $('newPhone').value = '';
+    $('newEmail').value = '';
+    $('newPassword').value = '';
+
+    $('addResult').innerText =
+      'تم إنشاء حساب السائق بنجاح';
+
+  }catch(error){
+    console.error('Add Driver Error:', error);
+
+    if(newUser){
+      try{
+        await newUser.delete();
+      }catch(deleteError){
+        console.error('Delete Driver Auth Error:', deleteError);
+      }
+    }
+
+    $('addResult').innerText =
+      'تعذر إضافة السائق: ' + error.message;
+  }
+}
+async function saveSettings(){
+
+  if(!auth.currentUser ||
+     auth.currentUser.uid !== 'n4eiE6M94aYkBCxDBTgcjerNAJU2'){
+    return alert('ما عندكش صلاحية المسؤول');
+  }
+
+  const pricePerKm = Number($('pricePerKm').value);
+  const minPrice = Number($('minPrice').value);
+  const commission = Number($('commission').value);
+
+  if(
+    !Number.isFinite(pricePerKm) || pricePerKm <= 0 ||
+    !Number.isFinite(minPrice) || minPrice < 0 ||
+    !Number.isFinite(commission) ||
+    commission < 0 || commission > 100
+  ){
+    return alert('تحقق من الأسعار والعمولة');
+  }
+
+  try{
+
+    await db.collection('settings').doc('main').set({
+      pricePerKm,
+      minPrice,
+      commission,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    }, {merge:true});
+
+    write('taxiSettings', {
+      pricePerKm,
+      minPrice,
+      commission
+    });
+
+    $('settingsResult').innerText =
+      'تم حفظ الأسعار والعمولة بنجاح';
+
+  }catch(error){
+
+    console.error('Save Settings Error:', error);
+
+    $('settingsResult').innerText =
+      'تعذر الحفظ: ' + error.message;
+  }
+}
 
 async function calculateRoute(){
  try{
@@ -989,7 +1128,24 @@ async function calculateRoute(){
   let url=`https://router.project-osrm.org/route/v1/driving/${from[1]},${from[0]};${to[1]},${to[0]}?overview=full&geometries=geojson`;
   let d=await(await fetch(url)).json();
   if(!d.routes?.length)throw Error('route');
-  let r=d.routes[0],s=getSettings(),km=r.distance/1000;
+  let r=d.routes[0],s=getSettings(),km=r.distance/10let r = d.routes[0];
+
+let settingsDoc = await db.collection('settings')
+  .doc('main')
+  .get();
+
+let s = settingsDoc.exists
+  ? {
+      pricePerKm: 0.8,
+      minPrice: 2,
+      commission: 10,
+      ...settingsDoc.data()
+    }
+  : getSettings();
+
+write('taxiSettings', s);
+
+let km = r.distance / 1000;00;
   let fare=Math.max(s.minPrice,km*s.pricePerKm);
   route={distance:+km.toFixed(2),minutes:Math.ceil(r.duration/60),fare:+fare.toFixed(2),commission:+(fare*s.commission/100).toFixed(2)};
   clearRoute();
@@ -1395,7 +1551,187 @@ async function rateRide(id,n){
 
 /* صفحة السائق من Firebase */
 
+function saveFavorite(){
+
+  if(!auth.currentUser){
+    return alert('سجّل الدخول أولاً');
+  }
+
+  const name = $('favName').value.trim();
+  const address = $('favAddress').value.trim();
+
+  if(!name || !address){
+    return alert('اكتب اسم المكان والعنوان');
+  }
+
+  const key = 'taxiFavorites_' + auth.currentUser.uid;
+
+  let favorites = read(key, []);
+
+  favorites.push({
+    name: name,
+    address: address
+  });
+
+  write(key, favorites);
+
+  $('favName').value = '';
+  $('favAddress').value = '';
+
+  renderFavorites();
+
+  alert('تم حفظ المكان بنجاح');
+}
+
+function renderFavorites(){
+
+  if(!auth.currentUser || !$('favorites')) return;
+
+  const key = 'taxiFavorites_' + auth.currentUser.uid;
+  const favorites = read(key, []);
+
+  $('favorites').innerHTML = favorites.map((f, i) => `
+    <div class="item">
+      <b>${esc(f.name)}</b><br>
+      ${esc(f.address)}<br>
+      <button class="red" onclick="deleteFavorite(${i})">
+        حذف
+      </button>
+    </div>
+  `).join('') || 'ما عندك حتى مكان محفوظ';
+}
+
+function deleteFavorite(index){
+
+  if(!auth.currentUse
+ ) return;
+
+  const key = 'taxiFavorites_' + auth.currentUser.uid;
+  const favorites = read(key, []);
+
+  favorites.splice(index, 1);
+
+  write(key, favorites);
+
+  renderFavorites();
+}
+
+async function loginDriver(){
+
+  const email = $('driverEmail').value.trim().toLowerCase();
+  const password = $('driverPass').value;
+
+  if(!email || !password){
+    $('driverError').innerText =
+      'اكتب الإيميل وكلمة السر';
+    return;
+  }
+
+  try{
+
+    $('driverError').innerText = 'جاري تسجيل الدخول...';
+
+    const credential = await auth.signInWithEmailAndPassword(
+      email,
+      password
+    );
+
+    const uid = credential.user.uid;
+
+    const driverDoc = await db.collection('drivers')
+      .doc(uid)
+      .get();
+
+    if(!driverDoc.exists){
+      await auth.signOut();
+      $('driverError').innerText =
+        'حسابك مازال ما تقبلش من المسؤول.';
+      return;
+    }
+
+    const data = driverDoc.data();
+
+    if(data.active !== true){
+      await auth.signOut();
+      $('driverError').innerText =
+        'حساب السائق غير مفعّل.';
+      return;
+    }
+
+    driver = {
+      uid: uid,
+      ...data
+    };
+
+    online = !!data.online;
+
+    $('driverError').innerText = '';
+
+    openPage('driverPanel');
+
+    await renderDriver();
+
+  }catch(error){
+
+    console.error('Driver Login Error:', error);
+
+    $('driverError').innerText =
+      'خطأ في الدخول: ' + error.message;
+  }
+}
+
+
+async function driverLogout(){
+
+  try{
+
+    if(stopDriverNewRides){
+      stopDriverNewRides();
+      stopDriverNewRides = null;
+    }
+
+    if(stopDriverMineRides){
+      stopDriverMineRides();
+      stopDriverMineRides = null;
+    }
+
+    await auth.signOut();
+
+    driver = null;
+    online = false;
+
+    openPage('home');
+
+  }catch(error){
+
+    console.error('Driver Logout Error:', error);
+    alert('تعذر تسجيل الخروج: ' + error.message);
+
+  }
+}
+
+function openMaps(fromLat, fromLng, toLat, toLng){
+
+  if(
+    !Number.isFinite(fromLat) ||
+    !Number.isFinite(fromLng) ||
+    !Number.isFinite(toLat) ||
+    !Number.isFinite(toLng)
+  ){
+    return alert('إحداثيات الخريطة غير صحيحة');
+  }
+
+  const url =
+    'https://www.google.com/maps/dir/?api=1' +
+    '&origin=' + fromLat + ',' + fromLng +
+    '&destination=' + toLat + ',' + toLng +
+    '&travelmode=driving';
+
+  window.open(url, '_blank');
+}
+
 async function renderDriver(){
+
 
   console.log('RENDER DRIVER START');
 
@@ -1743,7 +2079,7 @@ async function finishRide(id){
     const rideRef = db.collection('rides').doc(id);
     const driverRef = db.collection('drivers').doc(uid);
 
-    await db.runTransaction(async (transaction) => {
+    await db.runTransaction(async transaction => {
 
       const rideDoc = await transaction.get(rideRef);
       const driverDoc = await transaction.get(driverRef);
@@ -1757,17 +2093,26 @@ async function finishRide(id){
       const r = rideDoc.data();
       const d = driverDoc.data();
 
-      if(r.driverId !== uid || r.status !== 'جارية'){
+      if(r.driverId !== uid || r.status !== 'جارية')
         throw new Error('ما تنجمش تكمل الرحلة');
-      }
 
-      if(d.active !== true){
+      if(d.active !== true)
         throw new Error('حساب السائق غير مفعّل');
-      }
 
-      if(d.activeRideId !== id){
+      if(d.activeRideId !== id)
         throw new Error('رقم الرحلة النشيطة غير مطابق');
-      }
+
+      if(!r.clientId)
+        throw new Error('معرّف الحريف غير موجود');
+
+      const clientRef = db.collection('clients').doc(r.clientId);
+      const clientDoc = await transaction.get(clientRef);
+
+      if(!clientDoc.exists)
+        throw new Error('حساب الحريف غير موجود');
+
+      if(clientDoc.data().activeRideId !== id)
+        throw new Error('الرحلة النشيطة للحريف غير مطابقة');
 
       // إكمال الرحلة
       transaction.update(rideRef, {
@@ -1775,8 +2120,13 @@ async function finishRide(id){
         completedAt: firebase.firestore.FieldValue.serverTimestamp()
       });
 
-      // تحرير السائق في نفس العملية
+      // تحرير السائق
       transaction.update(driverRef, {
+        activeRideId: null
+      });
+
+      // تحرير الحريف
+      transaction.update(clientRef, {
         activeRideId: null
       });
 
@@ -1784,7 +2134,7 @@ async function finishRide(id){
 
     alert('تم إكمال الرحلة بنجاح');
 
-    renderDriver();
+    await renderDriver();
 
   } catch(error) {
 
