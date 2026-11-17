@@ -1293,32 +1293,63 @@ async function cancelRide(id){
   if(reason === null) return;
 
   try{
-    const ref = db.collection('rides').doc(id);
-    const doc = await ref.get();
 
-    if(!doc.exists){
-      return alert('الطلب غير موجود');
-    }
+    const uid = auth.currentUser.uid;
 
-    const ride = doc.data();
+    const rideRef = db.collection('rides').doc(id);
+    const clientRef = db.collection('clients').doc(uid);
 
-    if(
-      ride.clientId !== auth.currentUser.uid ||
-      ride.status !== 'جديد'
-    ){
-      return alert('ما تنجمش تلغي الطلب');
-    }
+    await db.runTransaction(async transaction => {
 
-    await ref.update({
-      status: 'ملغاة',
-      cancelReason: reason
+      const rideDoc = await transaction.get(rideRef);
+      const clientDoc = await transaction.get(clientRef);
+
+      if(!rideDoc.exists){
+        throw new Error('الطلب غير موجود');
+      }
+
+      if(!clientDoc.exists){
+        throw new Error('حساب الحريف غير موجود');
+      }
+
+      const ride = rideDoc.data();
+      const clientData = clientDoc.data();
+
+      if(
+        ride.clientId !== uid ||
+        ride.status !== 'جديد'
+      ){
+        throw new Error('ما تنجمش تلغي الطلب');
+      }
+
+      if(
+        clientData.activeRideId != null &&
+        clientData.activeRideId !== id
+      ){
+        throw new Error('رقم الرحلة النشيطة غير مطابق');
+      }
+
+      transaction.update(rideRef, {
+        status: 'ملغاة',
+        cancelReason: reason
+      });
+
+      if(clientData.activeRideId === id){
+        transaction.update(clientRef, {
+          activeRideId: null
+        });
+      }
+
     });
 
-    alert('تم إلغاء الطلب');
+    alert('تم إلغاء الطلب وتحرير الحجز');
+
     renderClient();
 
   }catch(error){
+
     console.error('Cancel Ride Error:', error);
+
     alert('تعذر إلغاء الطلب: ' + error.message);
   }
 }
