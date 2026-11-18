@@ -13,7 +13,7 @@
 html{scroll-behavior:smooth}
 body{margin:0;font-family:Arial,"Noto Sans Arabic",sans-serif;background:#eef3f8;color:#10233f;line-height:1.55}
 button{border:0;border-radius:13px;padding:13px 16px;font-weight:700;font-size:15px;cursor:pointer;margin:3px;transition:transform .15s,filter .15s;min-height:44px}
-button:active{transform:scale(.98)}button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid #ffb34d;outline-offset:2px}
+button:active{transform:scale(.98)}bautton:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid #ffb34d;outline-offset:2px}
 input,select,textarea{width:100%;padding:13px;margin:7px 0;border:1px solid #d8e1eb;border-radius:12px;font-size:16px;background:#fff;color:#10233f}
 input::placeholder,textarea::placeholder{color:#8290a2}
 hr{border:0;border-top:1px solid var(--line);margin:20px 0}
@@ -309,6 +309,17 @@ html,body{min-height:100%;}
 #connectionStatus{z-index:20}
 @media(min-width:700px){#home.hero{background-size:cover!important;background-position:center 48%!important;padding:26px!important}#home .role-grid{max-width:520px!important}#home .role-tile{min-height:70px!important}}
 @media(max-height:740px){#home.hero{gap:7px!important;padding:10px!important}#home .logo{margin-top:4px!important}#home .role-tile{min-height:62px!important;padding:8px 12px!important}#home .role-grid{gap:8px!important}}
+</style>
+
+
+<style id="taxi-moto-background-fit">
+/* تصغير الخلفية مع إظهار المشهد كاملاً، دون تغيير الأزرار أو وظائف التطبيق */
+#home.hero {
+  background-size: contain !important;
+  background-position: center center !important;
+  background-repeat: no-repeat !important;
+  background-color: #102b49 !important;
+}
 </style>
 
 </head>
@@ -2320,6 +2331,18 @@ function printDriverStatement(driverId){
 @media(min-width:700px){#adminPanel .stats{grid-template-columns:repeat(4,minmax(0,1fr))!important}}
 @media(max-width:360px){#adminPanel>.card{padding:13px!important}#adminPanel .stat{padding:10px!important}}
 </style>
+
+<style id="taxi-moto-background-fit-final">
+/* تصغير المشهد أكثر وإظهاره كاملاً دون المساس بتخطيط الصفحة أو وظائفها */
+html body #home.hero,
+html body .hero#home {
+  background-size: 78% auto !important;
+  background-position: center center !important;
+  background-repeat: no-repeat !important;
+  background-color: #102b49 !important;
+}
+</style>
+
 </body></html>`);
   popup.document.close();
 }
