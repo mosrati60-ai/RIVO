@@ -1,5 +1,5 @@
 
-const CACHE_NAME = 'taxi-moto-tunisia-shell-v3';
+const CACHE_NAME = 'RIVO-shell-v3';
 
 const APP_SHELL = [
   './',
