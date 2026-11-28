@@ -1,21 +1,36 @@
-{
-  "name": "RIVO — Taxi Moto Tunisia",
-  "short_name": "RIVO",
-  "description": "Commandez votre taxi moto en Tunisie en quelques secondes.",
-  "start_url": "./index.html",
-  "scope": "./",
-  "display": "standalone",
-  "orientation": "portrait",
-  "background_color": "#08090b",
-  "theme_color": "#ff7900",
-  "lang": "fr",
-  "dir": "ltr",
-  "icons": [
-    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
-    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
-  ],
-  "shortcuts": [
-    { "name": "Commander une course", "url": "./index.html#order", "icons": [{ "src": "icon-192.png", "sizes": "192x192" }] },
-    { "name": "Mes courses", "url": "./index.html#rides" }
-  ]
-}
+const CACHE = 'rivo-v1';
+const ASSETS = [
+  './',
+  './index.html',
+  './manifest.json',
+  'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
+  'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'
+];
+
+self.addEventListener('install', e => {
+  e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting()));
+});
+
+self.addEventListener('activate', e => {
+  e.waitUntil(
+    caches.keys().then(keys => Promise.all(
+      keys.filter(k => k !== CACHE).map(k => caches.delete(k))
+    )).then(() => self.clients.claim())
+  );
+});
+
+self.addEventListener('fetch', e => {
+  if (e.request.method !== 'GET') return;
+  e.respondWith(
+    caches.match(e.request).then(cached => {
+      const network = fetch(e.request).then(res => {
+        if (res && res.status === 200 && res.type === 'basic') {
+          const copy = res.clone();
+          caches.open(CACHE).then(c => c.put(e.request, copy));
+        }
+        return res;
+      }).catch(() => cached);
+      return cached || network;
+    })
+  );
+});
